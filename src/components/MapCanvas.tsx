@@ -283,8 +283,6 @@ export default function MapCanvas({
           centerOnInit
           minScale={0.1}
           maxScale={10}
-          limitToBounds
-          centerZoomedOut
           smooth
           panning={{
             disabled: !!draggingId,
