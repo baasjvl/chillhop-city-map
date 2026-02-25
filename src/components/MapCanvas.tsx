@@ -52,14 +52,15 @@ export default function MapCanvas({
   } | null>(null);
 
   // Fit map to container (height-fit, horizontally centered)
-  const fitToView = useCallback(() => {
-    if (!containerRef.current || imgSize.w === 0 || imgSize.h === 0) return;
+  const fitToView = useCallback((): boolean => {
+    if (!containerRef.current || imgSize.w === 0 || imgSize.h === 0) return false;
     const cw = containerRef.current.clientWidth;
     const ch = containerRef.current.clientHeight;
-    if (ch === 0 || cw === 0) return;
+    if (ch === 0 || cw === 0) return false;
     const fitScale = ch / imgSize.h;
     setScale(fitScale);
     setPan({ x: (cw - imgSize.w * fitScale) / 2, y: 0 });
+    return true;
   }, [imgSize]);
 
   // Load map image
@@ -73,29 +74,16 @@ export default function MapCanvas({
     };
   }, []);
 
-  // Fit to viewport on load and re-fit on container resize
+  // Fit to viewport once on initial load (ResizeObserver waits for container dimensions)
   useEffect(() => {
-    if (!imgLoaded) return;
-
-    // Initial fit (wait for layout)
-    const tryFit = () => {
-      if (!containerRef.current) return;
-      const cw = containerRef.current.clientWidth;
-      const ch = containerRef.current.clientHeight;
-      if (ch === 0 || cw === 0) {
-        requestAnimationFrame(tryFit);
-        return;
-      }
-      fitToView();
-    };
-    requestAnimationFrame(tryFit);
-
-    // Re-fit on container resize (window resize, sidebar toggle, etc.)
-    if (!containerRef.current) return;
+    if (!imgLoaded || !containerRef.current) return;
+    const el = containerRef.current;
     const observer = new ResizeObserver(() => {
-      fitToView();
+      if (fitToView()) {
+        observer.disconnect();
+      }
     });
-    observer.observe(containerRef.current);
+    observer.observe(el);
     return () => observer.disconnect();
   }, [imgLoaded, fitToView]);
 
