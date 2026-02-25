@@ -32,7 +32,7 @@ An interactive web map that visualizes Notion content spatially. Notion remains 
 |------|--------|---------------|-------------|
 | **District** | Semi-transparent polygon overlay | `Districts` database | Named city areas (Midtown, Salt Bay, Oldtown). Boundaries drawn on map. |
 | **Location** | Pin (large) | `Locations` database | Places you can "enter" in the city — ship café, galleries, fruit tree, tramwalk. |
-| **Notable Point** | Pin (small) | `Notable Points` database | Specific spots: lore snippets, Easter eggs, interactable objects, NPC posts. Can be tied to quests, storylines. |
+| **Notable Point** | Pin (small) | `Notable Points` database | Specific spots: landmarks, venues, businesses, infrastructure, etc. Categorized by physical type + engagement layer. Can be tied to quests, storylines. |
 | **Routine** | Path (line between points) | `Routines` database | NPC movement paths — the skateboarding turtle's daily route, Humanist commuter paths. Defined as ordered sequence of waypoints. |
 
 ### What's NOT on the map
@@ -90,8 +90,8 @@ All content AND coordinates live in Notion. The map reads from Notion and writes
 | Location | Relation → Locations | If this point is inside a specific location |
 | District | Relation → Districts | Which district |
 | Storyline | Relation → Storylines | Connected storyline(s), if any |
-| Type | Select | `Lore`, `NPC`, `Easter Egg`, `Interactable`, `Quest Trigger`, `Ambient Detail` |
-| Engagement Layer | Select | `Ambient`, `Exploration`, `Observation`, `Deep Discovery` |
+| Category | Select | `Landmark`, `Venue`, `Business`, `Shop / Market`, `Cultural`, `Infrastructure`, `Residential`, `Nature` |
+| Engagement Layer | Multi-select | `Ambient`, `Exploration`, `Observation`, `Deep Discovery` |
 | X | Number | Horizontal position (0–1) |
 | Y | Number | Vertical position (0–1) |
 | Status | Select | `WIP`, `Ready for Review`, `Ready to Implement`, `Implemented` |
