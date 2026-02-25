@@ -67,11 +67,12 @@ export default function MapCanvas({
     if (!imgLoaded || !containerRef.current) return;
     const cw = containerRef.current.clientWidth;
     const ch = containerRef.current.clientHeight;
-    const fitScale = Math.min(cw / imgSize.w, ch / imgSize.h, 1);
+    // Fit so the full map height fills the viewport (width may overflow — that's fine for a wide panorama)
+    const fitScale = ch / imgSize.h;
     setScale(fitScale);
     setPan({
       x: (cw - imgSize.w * fitScale) / 2,
-      y: (ch - imgSize.h * fitScale) / 2,
+      y: 0,
     });
   }, [imgLoaded, imgSize]);
 
