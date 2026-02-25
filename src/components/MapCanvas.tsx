@@ -24,9 +24,9 @@ interface MapCanvasProps {
   sidebarOpen: boolean;
 }
 
-const PIN_RADIUS = 7;
-const PIN_RADIUS_HOVER = 9;
-const LABEL_OFFSET = 16;
+const PIN_RADIUS = 10;
+const PIN_RADIUS_HOVER = 13;
+const LABEL_OFFSET = 20;
 const DRAG_THRESHOLD = 5;
 
 export default function MapCanvas({
@@ -41,7 +41,7 @@ export default function MapCanvas({
   const transformRef = useRef<ReactZoomPanPinchContentRef>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
-  const [containerHeight, setContainerHeight] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // Hover state
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -84,13 +84,13 @@ export default function MapCanvas({
     };
   }, []);
 
-  // Measure container height once for initial scale calculation
+  // Measure container width once for initial scale calculation
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
-      const height = entries[0].contentRect.height;
-      if (height > 0) {
-        setContainerHeight(height);
+      const width = entries[0].contentRect.width;
+      if (width > 0) {
+        setContainerWidth(width);
         observer.disconnect();
       }
     });
@@ -98,8 +98,8 @@ export default function MapCanvas({
     return () => observer.disconnect();
   }, []);
 
-  const ready = imgLoaded && containerHeight > 0;
-  const initialScale = ready ? containerHeight / imgSize.h : 1;
+  const ready = imgLoaded && containerWidth > 0;
+  const initialScale = ready ? containerWidth / imgSize.w : 1;
 
   useEffect(() => {
     if (ready) initialScaleRef.current = initialScale;
@@ -357,7 +357,7 @@ export default function MapCanvas({
                 border: "2px solid rgba(255,255,255,0.9)",
                 boxShadow: isDragging
                   ? "0 2px 8px rgba(0,0,0,0.6)"
-                  : "0 1px 4px rgba(0,0,0,0.4)",
+                  : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
                 transition: "width 0.1s, height 0.1s",
                 opacity: isDragging ? 0.8 : 1,
               }}
