@@ -62,18 +62,31 @@ export default function MapCanvas({
     };
   }, []);
 
-  // Center map when image loads
+  // Center map when image loads (use ResizeObserver to ensure container has dimensions)
+  const hasFittedRef = useRef(false);
   useEffect(() => {
     if (!imgLoaded || !containerRef.current) return;
-    const cw = containerRef.current.clientWidth;
-    const ch = containerRef.current.clientHeight;
-    // Fit so the full map height fills the viewport (width may overflow — that's fine for a wide panorama)
-    const fitScale = ch / imgSize.h;
-    setScale(fitScale);
-    setPan({
-      x: (cw - imgSize.w * fitScale) / 2,
-      y: 0,
-    });
+    hasFittedRef.current = false;
+
+    const fitMap = () => {
+      if (hasFittedRef.current || !containerRef.current) return;
+      const cw = containerRef.current.clientWidth;
+      const ch = containerRef.current.clientHeight;
+      if (ch === 0 || cw === 0) return; // container not laid out yet
+      hasFittedRef.current = true;
+      // Fit so the full map height fills the viewport
+      const fitScale = ch / imgSize.h;
+      setScale(fitScale);
+      setPan({
+        x: (cw - imgSize.w * fitScale) / 2,
+        y: 0,
+      });
+    };
+
+    fitMap(); // try immediately
+    const ro = new ResizeObserver(fitMap);
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, [imgLoaded, imgSize]);
 
   // Screen coords -> normalized map coords (0-1)
