@@ -165,9 +165,9 @@ export default function MapCanvas({
 
     if (placingId) return;
 
-    // Start pin drag if mousedown is on a pin
+    // Only start drag on an already-selected pin (click first to select, then drag)
     const pin = findPinAt(e.clientX, e.clientY);
-    if (pin) {
+    if (pin && pin.id === selectedId) {
       setDraggingId(pin.id);
       setDraggingPos({ x: pin.x!, y: pin.y! });
     }
@@ -263,6 +263,9 @@ export default function MapCanvas({
   if (placingId) cursor = "crosshair";
   if (hoveredId && !placingId && !draggingId) cursor = "pointer";
 
+  // Scale pins up when zoomed past 300%
+  const pinScale = displayScale > 3 ? displayScale / 3 : 1;
+
   const placed = points.filter((p) => p.x !== null && p.y !== null);
 
   return (
@@ -323,7 +326,8 @@ export default function MapCanvas({
               const isHovered = p.id === hoveredId;
               const isDragging = p.id === draggingId;
               const color = getTypeColor(p.type);
-              const r = isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS;
+              const baseR = isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS;
+              const r = baseR * pinScale;
 
               const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
               const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
