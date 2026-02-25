@@ -10,7 +10,6 @@ import {
 import {
   TransformWrapper,
   TransformComponent,
-  KeepScale,
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
 import type { NotablePoint } from "@/lib/types";
@@ -60,9 +59,13 @@ export default function MapCanvas({
     y: number;
   } | null>(null);
 
-  // Track transform state for hit testing and zoom display
+  // Transform state — ref for hit testing, state for rendering pin overlay
   const transformStateRef = useRef({ scale: 1, positionX: 0, positionY: 0 });
-  const [displayScale, setDisplayScale] = useState(1);
+  const [transformState, setTransformState] = useState({
+    scale: 1,
+    positionX: 0,
+    positionY: 0,
+  });
   const initialScaleRef = useRef(1);
 
   // Track mousedown position to distinguish clicks from drags
@@ -112,14 +115,17 @@ export default function MapCanvas({
     const pin = points.find((p) => p.id === selectedId);
     if (!pin || pin.x === null || pin.y === null) return;
 
+    // Use setTransform to center on pin (pins are outside TransformComponent)
+    const wrapper = transformRef.current.instance.wrapperComponent;
+    if (!wrapper) return;
+    const ww = wrapper.clientWidth;
+    const wh = wrapper.clientHeight;
     const currentScale = transformStateRef.current.scale;
     const targetScale = Math.max(currentScale, initialScaleRef.current * 1.5);
-    transformRef.current.zoomToElement(
-      `map-pin-${selectedId}`,
-      targetScale,
-      300
-    );
-  }, [selectedId, points]);
+    const posX = ww / 2 - pin.x * imgSize.w * targetScale;
+    const posY = wh / 2 - pin.y * imgSize.h * targetScale;
+    transformRef.current.setTransform(posX, posY, targetScale, 300);
+  }, [selectedId, points, imgSize]);
 
   // Screen coords -> normalized map coords (0-1)
   const screenToMap = useCallback(
@@ -196,28 +202,13 @@ export default function MapCanvas({
   };
 
   const handleMouseUp = () => {
-    if (draggingId && mouseDownPosRef.current && draggingPos) {
-      const down = mouseDownPosRef.current;
-      // Only save if actually dragged beyond threshold
-      const el = containerRef.current;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const { scale, positionX, positionY } = transformStateRef.current;
-        const startPx =
-          points.find((p) => p.id === draggingId)!.x! * imgSize.w * scale +
-          positionX +
-          rect.left;
-        const startPy =
-          points.find((p) => p.id === draggingId)!.y! * imgSize.h * scale +
-          positionY +
-          rect.top;
-        const endPx =
-          draggingPos.x * imgSize.w * scale + positionX + rect.left;
-        const endPy =
-          draggingPos.y * imgSize.h * scale + positionY + rect.top;
-        const dist = Math.sqrt(
-          (endPx - startPx) ** 2 + (endPy - startPy) ** 2
-        );
+    if (draggingId && draggingPos) {
+      const orig = points.find((p) => p.id === draggingId);
+      if (orig && orig.x !== null && orig.y !== null) {
+        const { scale } = transformStateRef.current;
+        const dx = (draggingPos.x - orig.x) * imgSize.w * scale;
+        const dy = (draggingPos.y - orig.y) * imgSize.h * scale;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > DRAG_THRESHOLD) {
           onPlacePin(draggingId, draggingPos.x, draggingPos.y);
         }
@@ -263,8 +254,8 @@ export default function MapCanvas({
   if (placingId) cursor = "crosshair";
   if (hoveredId && !placingId && !draggingId) cursor = "pointer";
 
-  // Scale pins up when zoomed past 300%
-  const pinScale = displayScale > 3 ? displayScale / 3 : 1;
+  // Pin sizing: consistent screen size, grows past 300% zoom
+  const pinScaleBoost = transformState.scale > 3 ? transformState.scale / 3 : 1;
 
   const placed = points.filter((p) => p.x !== null && p.y !== null);
 
@@ -284,6 +275,7 @@ export default function MapCanvas({
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
     >
+      {/* Map image — inside TransformComponent for pan/zoom */}
       {ready && (
         <TransformWrapper
           ref={transformRef}
@@ -296,7 +288,6 @@ export default function MapCanvas({
           smooth
           panning={{
             disabled: !!draggingId,
-            excluded: ["map-pin"],
           }}
           velocityAnimation={{
             sensitivity: 1,
@@ -304,7 +295,7 @@ export default function MapCanvas({
           }}
           onTransformed={(_ref, state) => {
             transformStateRef.current = state;
-            setDisplayScale(state.scale);
+            setTransformState(state);
           }}
         >
           <TransformComponent
@@ -319,107 +310,109 @@ export default function MapCanvas({
               draggable={false}
               style={{ display: "block", userSelect: "none" }}
             />
+          </TransformComponent>
+        </TransformWrapper>
+      )}
 
-            {/* Pins */}
-            {placed.map((p) => {
-              const isSelected = p.id === selectedId;
-              const isHovered = p.id === hoveredId;
-              const isDragging = p.id === draggingId;
-              const color = getTypeColor(p.type);
-              const baseR = isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS;
-              const r = baseR * pinScale;
+      {/* Pins — rendered as overlay using transform state for positioning */}
+      {placed.map((p) => {
+        const isSelected = p.id === selectedId;
+        const isHovered = p.id === hoveredId;
+        const isDragging = p.id === draggingId;
+        const color = getTypeColor(p.type);
+        const baseR = isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS;
+        const r = baseR * pinScaleBoost;
 
-              const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
-              const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
+        const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
+        const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
 
-              return (
-                <div
-                  key={p.id}
-                  id={`map-pin-${p.id}`}
-                  style={{
-                    position: "absolute",
-                    left: pinX * imgSize.w,
-                    top: pinY * imgSize.h,
-                    transform: "translate(-50%, -50%)",
-                    zIndex: isDragging
-                      ? 30
-                      : isSelected
-                        ? 20
-                        : isHovered
-                          ? 15
-                          : 10,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <KeepScale
-                    className="map-pin"
-                    style={{ pointerEvents: "auto" }}
-                  >
-                    <div
-                      style={{
-                        width: r * 2,
-                        height: r * 2,
-                        borderRadius: "50%",
-                        background: color,
-                        border: "2px solid rgba(255,255,255,0.9)",
-                        boxShadow: isDragging
-                          ? "0 2px 8px rgba(0,0,0,0.6)"
-                          : "0 1px 4px rgba(0,0,0,0.4)",
-                        transition: "width 0.1s, height 0.1s",
-                        opacity: isDragging ? 0.8 : 1,
-                      }}
-                    />
-                    {(isHovered || isSelected) && !isDragging && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: LABEL_OFFSET,
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          fontSize: 11,
-                          whiteSpace: "nowrap",
-                          background: "rgba(58, 50, 38, 0.9)",
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          color: "#F5F0E8",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        {p.name}
-                      </div>
-                    )}
-                  </KeepScale>
-                </div>
-              );
-            })}
+        // Screen position from transform state
+        const screenX =
+          pinX * imgSize.w * transformState.scale + transformState.positionX;
+        const screenY =
+          pinY * imgSize.h * transformState.scale + transformState.positionY;
 
-            {/* Placement preview */}
-            {placingId && cursorMapPos && (
+        return (
+          <div
+            key={p.id}
+            style={{
+              position: "absolute",
+              left: screenX,
+              top: screenY,
+              transform: "translate(-50%, -50%)",
+              zIndex: isDragging
+                ? 30
+                : isSelected
+                  ? 20
+                  : isHovered
+                    ? 15
+                    : 10,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                width: r * 2,
+                height: r * 2,
+                borderRadius: "50%",
+                background: color,
+                border: "2px solid rgba(255,255,255,0.9)",
+                boxShadow: isDragging
+                  ? "0 2px 8px rgba(0,0,0,0.6)"
+                  : "0 1px 4px rgba(0,0,0,0.4)",
+                transition: "width 0.1s, height 0.1s",
+                opacity: isDragging ? 0.8 : 1,
+              }}
+            />
+            {(isHovered || isSelected) && !isDragging && (
               <div
                 style={{
                   position: "absolute",
-                  left: cursorMapPos.x * imgSize.w,
-                  top: cursorMapPos.y * imgSize.h,
-                  transform: "translate(-50%, -50%)",
-                  zIndex: 30,
+                  top: LABEL_OFFSET,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  fontSize: 11,
+                  whiteSpace: "nowrap",
+                  background: "rgba(58, 50, 38, 0.9)",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  color: "#F5F0E8",
                   pointerEvents: "none",
                 }}
               >
-                <KeepScale>
-                  <div
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: "rgba(245, 168, 85, 0.6)",
-                      border: "2px dashed #F5A855",
-                    }}
-                  />
-                </KeepScale>
+                {p.name}
               </div>
             )}
-          </TransformComponent>
-        </TransformWrapper>
+          </div>
+        );
+      })}
+
+      {/* Placement preview */}
+      {placingId && cursorMapPos && (
+        <div
+          style={{
+            position: "absolute",
+            left:
+              cursorMapPos.x * imgSize.w * transformState.scale +
+              transformState.positionX,
+            top:
+              cursorMapPos.y * imgSize.h * transformState.scale +
+              transformState.positionY,
+            transform: "translate(-50%, -50%)",
+            zIndex: 30,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              background: "rgba(245, 168, 85, 0.6)",
+              border: "2px dashed #F5A855",
+            }}
+          />
+        </div>
       )}
 
       {/* Zoom indicator */}
@@ -435,7 +428,7 @@ export default function MapCanvas({
           color: "rgba(245, 240, 232, 0.5)",
         }}
       >
-        {Math.round(displayScale * 100)}%
+        {Math.round(transformState.scale * 100)}%
       </div>
 
       {/* Placement mode indicator */}
