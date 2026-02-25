@@ -306,7 +306,7 @@ export default function MapCanvas({
               width={imgSize.w}
               height={imgSize.h}
               draggable={false}
-              style={{ display: "block", userSelect: "none" }}
+              style={{ display: "block", userSelect: "none", maxWidth: "none" }}
             />
           </TransformComponent>
         </TransformWrapper>
