@@ -77,6 +77,61 @@ export async function getNotablePoints(
   return results;
 }
 
+export async function getPageContent(pageId: string): Promise<string> {
+  const blocks: string[] = [];
+  let cursor: string | undefined = undefined;
+
+  do {
+    const response = await notion.blocks.children.list({
+      block_id: pageId,
+      start_cursor: cursor,
+      page_size: 100,
+    });
+
+    for (const block of response.results) {
+      if (!("type" in block)) continue;
+      const b = block as Record<string, unknown>;
+      const type = b.type as string;
+      const data = b[type] as { rich_text?: Array<{ plain_text: string }> } | undefined;
+      const text = data?.rich_text?.map((t) => t.plain_text).join("") ?? "";
+
+      if (!text && type !== "divider") continue;
+
+      switch (type) {
+        case "heading_1":
+          blocks.push(`# ${text}`);
+          break;
+        case "heading_2":
+          blocks.push(`## ${text}`);
+          break;
+        case "heading_3":
+          blocks.push(`### ${text}`);
+          break;
+        case "bulleted_list_item":
+          blocks.push(`• ${text}`);
+          break;
+        case "numbered_list_item":
+          blocks.push(`  ${text}`);
+          break;
+        case "to_do": {
+          const checked = (b[type] as { checked?: boolean })?.checked;
+          blocks.push(`${checked ? "☑" : "☐"} ${text}`);
+          break;
+        }
+        case "divider":
+          blocks.push("---");
+          break;
+        default:
+          if (text) blocks.push(text);
+      }
+    }
+
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  return blocks.join("\n\n");
+}
+
 export async function placePoint(
   pageId: string,
   x: number,

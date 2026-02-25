@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { NotablePoint } from "@/lib/types";
 import { getTypeColor, getStatusColor } from "@/lib/colors";
 
@@ -9,6 +10,25 @@ interface DetailPanelProps {
 }
 
 export default function DetailPanel({ point, onClose }: DetailPanelProps) {
+  const [pageContent, setPageContent] = useState<string | null>(null);
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  useEffect(() => {
+    if (!point) {
+      setPageContent(null);
+      return;
+    }
+
+    setLoadingContent(true);
+    setPageContent(null);
+
+    fetch(`/api/page-content/${point.id}`)
+      .then((r) => r.json())
+      .then((data) => setPageContent(data.content || ""))
+      .catch(() => setPageContent(null))
+      .finally(() => setLoadingContent(false));
+  }, [point?.id]);
+
   if (!point) return null;
 
   const typeColor = getTypeColor(point.type);
@@ -71,25 +91,15 @@ export default function DetailPanel({ point, onClose }: DetailPanelProps) {
 
       {/* Body */}
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Type */}
-        {point.type && (
-          <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>
-              Type
-            </div>
+        {/* Type & Status row */}
+        <div style={{ display: "flex", gap: 12 }}>
+          {point.type && (
             <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: typeColor }} />
               {point.type}
             </div>
-          </div>
-        )}
-
-        {/* Status */}
-        {point.status && (
-          <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>
-              Status
-            </div>
+          )}
+          {point.status && (
             <span
               style={{
                 fontSize: 11,
@@ -102,75 +112,77 @@ export default function DetailPanel({ point, onClose }: DetailPanelProps) {
             >
               {point.status}
             </span>
-          </div>
-        )}
-
-        {/* Description */}
-        {point.description && (
-          <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>
-              Description
-            </div>
-            <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-              {point.description}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Engagement Layers */}
         {point.engagementLayers.length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>
-              Engagement Layer
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {point.engagementLayers.map((l) => (
-                <span
-                  key={l}
-                  style={{
-                    fontSize: 11,
-                    padding: "2px 8px",
-                    background: "rgba(58, 50, 38, 0.2)",
-                    borderRadius: 10,
-                  }}
-                >
-                  {l}
-                </span>
-              ))}
-            </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {point.engagementLayers.map((l) => (
+              <span
+                key={l}
+                style={{
+                  fontSize: 11,
+                  padding: "2px 8px",
+                  background: "rgba(58, 50, 38, 0.2)",
+                  borderRadius: 10,
+                }}
+              >
+                {l}
+              </span>
+            ))}
           </div>
         )}
 
         {/* Tags */}
         {point.tags.length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>
-              Tags
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {point.tags.map((t) => (
-                <span
-                  key={t}
-                  style={{
-                    fontSize: 11,
-                    padding: "2px 8px",
-                    background: "rgba(58, 50, 38, 0.2)",
-                    borderRadius: 10,
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {point.tags.map((t) => (
+              <span
+                key={t}
+                style={{
+                  fontSize: 11,
+                  padding: "2px 8px",
+                  background: "rgba(58, 50, 38, 0.2)",
+                  borderRadius: 10,
+                }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Description */}
+        {point.description && (
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text-muted)" }}>
+            {point.description}
+          </div>
+        )}
+
+        {/* Divider before page content */}
+        <div style={{ height: 1, background: "var(--panel-border)" }} />
+
+        {/* Page content */}
+        {loadingContent && (
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Loading content...
+          </div>
+        )}
+        {!loadingContent && pageContent && (
+          <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {pageContent}
+          </div>
+        )}
+        {!loadingContent && pageContent === "" && (
+          <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+            No content on this page yet.
           </div>
         )}
 
         {/* Coordinates */}
         {point.x !== null && point.y !== null && (
           <div>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>
-              Coordinates
-            </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
               x: {point.x.toFixed(4)} &nbsp; y: {point.y.toFixed(4)}
             </div>
