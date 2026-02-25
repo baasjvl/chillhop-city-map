@@ -10,6 +10,7 @@ import {
 import {
   TransformWrapper,
   TransformComponent,
+  KeepScale,
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
 import type { NotablePoint } from "@/lib/types";
@@ -27,6 +28,7 @@ interface MapCanvasProps {
 const PIN_RADIUS = 7;
 const PIN_RADIUS_HOVER = 9;
 const LABEL_OFFSET = 16;
+const DRAG_THRESHOLD = 5;
 
 export default function MapCanvas({
   points,
@@ -51,12 +53,23 @@ export default function MapCanvas({
     y: number;
   } | null>(null);
 
+  // Pin dragging state
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingPos, setDraggingPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
   // Track transform state for hit testing and zoom display
   const transformStateRef = useRef({ scale: 1, positionX: 0, positionY: 0 });
   const [displayScale, setDisplayScale] = useState(1);
+  const initialScaleRef = useRef(1);
 
   // Track mousedown position to distinguish clicks from drags
   const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Track whether selection came from map click (skip zoom-to)
+  const selectedFromMapRef = useRef(false);
 
   // Load map image
   useEffect(() => {
@@ -85,6 +98,29 @@ export default function MapCanvas({
   const ready = imgLoaded && containerHeight > 0;
   const initialScale = ready ? containerHeight / imgSize.h : 1;
 
+  useEffect(() => {
+    if (ready) initialScaleRef.current = initialScale;
+  }, [ready, initialScale]);
+
+  // Zoom to selected pin when selection comes from sidebar
+  useEffect(() => {
+    if (!selectedId || !transformRef.current) return;
+    if (selectedFromMapRef.current) {
+      selectedFromMapRef.current = false;
+      return;
+    }
+    const pin = points.find((p) => p.id === selectedId);
+    if (!pin || pin.x === null || pin.y === null) return;
+
+    const currentScale = transformStateRef.current.scale;
+    const targetScale = Math.max(currentScale, initialScaleRef.current * 1.5);
+    transformRef.current.zoomToElement(
+      `map-pin-${selectedId}`,
+      targetScale,
+      300
+    );
+  }, [selectedId, points]);
+
   // Screen coords -> normalized map coords (0-1)
   const screenToMap = useCallback(
     (clientX: number, clientY: number) => {
@@ -111,7 +147,6 @@ export default function MapCanvas({
       const { scale, positionX, positionY } = transformStateRef.current;
 
       const placed = points.filter((p) => p.x !== null && p.y !== null);
-      // Check in reverse order (top pins first)
       for (let i = placed.length - 1; i >= 0; i--) {
         const p = placed[i];
         const px = p.x! * imgSize.w * scale + positionX;
@@ -127,14 +162,84 @@ export default function MapCanvas({
   // Mouse handlers
   const handleMouseDown = (e: ReactMouseEvent) => {
     mouseDownPosRef.current = { x: e.clientX, y: e.clientY };
+
+    if (placingId) return;
+
+    // Start pin drag if mousedown is on a pin
+    const pin = findPinAt(e.clientX, e.clientY);
+    if (pin) {
+      setDraggingId(pin.id);
+      setDraggingPos({ x: pin.x!, y: pin.y! });
+    }
+  };
+
+  const handleMouseMove = (e: ReactMouseEvent) => {
+    // Pin dragging
+    if (draggingId) {
+      const pos = screenToMap(e.clientX, e.clientY);
+      if (pos) {
+        setDraggingPos({
+          x: Math.max(0, Math.min(1, pos.x)),
+          y: Math.max(0, Math.min(1, pos.y)),
+        });
+      }
+      return;
+    }
+
+    if (placingId) {
+      setCursorMapPos(screenToMap(e.clientX, e.clientY));
+      return;
+    }
+
+    const pin = findPinAt(e.clientX, e.clientY);
+    setHoveredId(pin?.id ?? null);
+  };
+
+  const handleMouseUp = () => {
+    if (draggingId && mouseDownPosRef.current && draggingPos) {
+      const down = mouseDownPosRef.current;
+      // Only save if actually dragged beyond threshold
+      const el = containerRef.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const { scale, positionX, positionY } = transformStateRef.current;
+        const startPx =
+          points.find((p) => p.id === draggingId)!.x! * imgSize.w * scale +
+          positionX +
+          rect.left;
+        const startPy =
+          points.find((p) => p.id === draggingId)!.y! * imgSize.h * scale +
+          positionY +
+          rect.top;
+        const endPx =
+          draggingPos.x * imgSize.w * scale + positionX + rect.left;
+        const endPy =
+          draggingPos.y * imgSize.h * scale + positionY + rect.top;
+        const dist = Math.sqrt(
+          (endPx - startPx) ** 2 + (endPy - startPy) ** 2
+        );
+        if (dist > DRAG_THRESHOLD) {
+          onPlacePin(draggingId, draggingPos.x, draggingPos.y);
+        }
+      }
+      setDraggingId(null);
+      setDraggingPos(null);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (draggingId) {
+      setDraggingId(null);
+      setDraggingPos(null);
+    }
   };
 
   const handleClick = (e: ReactMouseEvent) => {
-    // Ignore if this was a drag (panning)
+    // Ignore if this was a drag
     if (mouseDownPosRef.current) {
       const dx = e.clientX - mouseDownPosRef.current.x;
       const dy = e.clientY - mouseDownPosRef.current.y;
-      if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+      if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) return;
     }
 
     if (placingId) {
@@ -146,22 +251,17 @@ export default function MapCanvas({
     }
 
     const pin = findPinAt(e.clientX, e.clientY);
-    onSelectPin(pin?.id ?? null);
-  };
-
-  const handleMouseMove = (e: ReactMouseEvent) => {
-    if (placingId) {
-      setCursorMapPos(screenToMap(e.clientX, e.clientY));
-      return;
+    if (pin) {
+      selectedFromMapRef.current = true;
     }
-    const pin = findPinAt(e.clientX, e.clientY);
-    setHoveredId(pin?.id ?? null);
+    onSelectPin(pin?.id ?? null);
   };
 
   // Determine cursor style
   let cursor = "grab";
+  if (draggingId) cursor = "grabbing";
   if (placingId) cursor = "crosshair";
-  if (hoveredId && !placingId) cursor = "pointer";
+  if (hoveredId && !placingId && !draggingId) cursor = "pointer";
 
   const placed = points.filter((p) => p.x !== null && p.y !== null);
 
@@ -176,8 +276,10 @@ export default function MapCanvas({
         background: "#1a1612",
       }}
       onMouseDown={handleMouseDown}
-      onClick={handleClick}
       onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
     >
       {ready && (
         <TransformWrapper
@@ -186,8 +288,17 @@ export default function MapCanvas({
           centerOnInit
           minScale={0.1}
           maxScale={10}
-          limitToBounds={false}
+          limitToBounds
+          centerZoomedOut
           smooth
+          panning={{
+            disabled: !!draggingId,
+            excluded: ["map-pin"],
+          }}
+          velocityAnimation={{
+            sensitivity: 1,
+            animationTime: 400,
+          }}
           onTransformed={(_ref, state) => {
             transformStateRef.current = state;
             setDisplayScale(state.scale);
@@ -210,51 +321,70 @@ export default function MapCanvas({
             {placed.map((p) => {
               const isSelected = p.id === selectedId;
               const isHovered = p.id === hoveredId;
+              const isDragging = p.id === draggingId;
               const color = getTypeColor(p.type);
               const r = isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS;
+
+              const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
+              const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
 
               return (
                 <div
                   key={p.id}
+                  id={`map-pin-${p.id}`}
                   style={{
                     position: "absolute",
-                    left: p.x! * imgSize.w,
-                    top: p.y! * imgSize.h,
+                    left: pinX * imgSize.w,
+                    top: pinY * imgSize.h,
                     transform: "translate(-50%, -50%)",
-                    zIndex: isSelected ? 20 : isHovered ? 15 : 10,
+                    zIndex: isDragging
+                      ? 30
+                      : isSelected
+                        ? 20
+                        : isHovered
+                          ? 15
+                          : 10,
                     pointerEvents: "none",
                   }}
                 >
-                  <div
-                    style={{
-                      width: r * 2,
-                      height: r * 2,
-                      borderRadius: "50%",
-                      background: color,
-                      border: "2px solid rgba(255,255,255,0.9)",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-                      transition: "width 0.1s, height 0.1s",
-                    }}
-                  />
-                  {(isHovered || isSelected) && (
+                  <KeepScale
+                    className="map-pin"
+                    style={{ pointerEvents: "auto" }}
+                  >
                     <div
                       style={{
-                        position: "absolute",
-                        top: LABEL_OFFSET,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        fontSize: 11,
-                        whiteSpace: "nowrap",
-                        background: "rgba(58, 50, 38, 0.9)",
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        color: "#F5F0E8",
-                        pointerEvents: "none",
+                        width: r * 2,
+                        height: r * 2,
+                        borderRadius: "50%",
+                        background: color,
+                        border: "2px solid rgba(255,255,255,0.9)",
+                        boxShadow: isDragging
+                          ? "0 2px 8px rgba(0,0,0,0.6)"
+                          : "0 1px 4px rgba(0,0,0,0.4)",
+                        transition: "width 0.1s, height 0.1s",
+                        opacity: isDragging ? 0.8 : 1,
                       }}
-                    >
-                      {p.name}
-                    </div>
-                  )}
+                    />
+                    {(isHovered || isSelected) && !isDragging && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: LABEL_OFFSET,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                          background: "rgba(58, 50, 38, 0.9)",
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          color: "#F5F0E8",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {p.name}
+                      </div>
+                    )}
+                  </KeepScale>
                 </div>
               );
             })}
@@ -271,15 +401,17 @@ export default function MapCanvas({
                   pointerEvents: "none",
                 }}
               >
-                <div
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    background: "rgba(245, 168, 85, 0.6)",
-                    border: "2px dashed #F5A855",
-                  }}
-                />
+                <KeepScale>
+                  <div
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: "rgba(245, 168, 85, 0.6)",
+                      border: "2px dashed #F5A855",
+                    }}
+                  />
+                </KeepScale>
               </div>
             )}
           </TransformComponent>
