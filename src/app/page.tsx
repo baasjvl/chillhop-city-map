@@ -156,7 +156,11 @@ export default function Home() {
         onPlacePin={handlePlacePin}
         sidebarOpen={sidebarOpen}
       />
-      <DetailPanel point={selectedPoint} onClose={() => setSelectedId(null)} />
+      <DetailPanel
+        point={selectedPoint}
+        onClose={() => setSelectedId(null)}
+        onStartPlace={isAuthenticated ? handleStartPlace : undefined}
+      />
     </>
   );
 }

@@ -51,43 +51,33 @@ export default function MapCanvas({
     y: number;
   } | null>(null);
 
-  // Load map image
+  // Load map image and fit to viewport once ready
   useEffect(() => {
     const img = new Image();
     img.src = "/maps/city-macro.jpg";
     img.onload = () => {
       imgRef.current = img;
-      setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      setImgSize({ w, h });
       setImgLoaded(true);
+
+      // Wait for layout then fit
+      const tryFit = () => {
+        if (!containerRef.current) return;
+        const cw = containerRef.current.clientWidth;
+        const ch = containerRef.current.clientHeight;
+        if (ch === 0 || cw === 0) {
+          requestAnimationFrame(tryFit);
+          return;
+        }
+        const fitScale = ch / h;
+        setScale(fitScale);
+        setPan({ x: (cw - w * fitScale) / 2, y: 0 });
+      };
+      requestAnimationFrame(tryFit);
     };
   }, []);
-
-  // Center map when image loads (use ResizeObserver to ensure container has dimensions)
-  const hasFittedRef = useRef(false);
-  useEffect(() => {
-    if (!imgLoaded || !containerRef.current) return;
-    hasFittedRef.current = false;
-
-    const fitMap = () => {
-      if (hasFittedRef.current || !containerRef.current) return;
-      const cw = containerRef.current.clientWidth;
-      const ch = containerRef.current.clientHeight;
-      if (ch === 0 || cw === 0) return; // container not laid out yet
-      hasFittedRef.current = true;
-      // Fit so the full map height fills the viewport
-      const fitScale = ch / imgSize.h;
-      setScale(fitScale);
-      setPan({
-        x: (cw - imgSize.w * fitScale) / 2,
-        y: 0,
-      });
-    };
-
-    fitMap(); // try immediately
-    const ro = new ResizeObserver(fitMap);
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, [imgLoaded, imgSize]);
 
   // Screen coords -> normalized map coords (0-1)
   const screenToMap = useCallback(

@@ -7,9 +7,10 @@ import { getTypeColor, getStatusColor } from "@/lib/colors";
 interface DetailPanelProps {
   point: NotablePoint | null;
   onClose: () => void;
+  onStartPlace?: (id: string) => void;
 }
 
-export default function DetailPanel({ point, onClose }: DetailPanelProps) {
+export default function DetailPanel({ point, onClose, onStartPlace }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
 
@@ -189,26 +190,45 @@ export default function DetailPanel({ point, onClose }: DetailPanelProps) {
           </div>
         )}
 
-        {/* Open in Notion */}
-        <a
-          href={point.notionUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "block",
-            textAlign: "center",
-            background: "#F5A855",
-            color: "#3A3226",
-            padding: "8px 16px",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: "none",
-            marginTop: 8,
-          }}
-        >
-          Open in Notion
-        </a>
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          {onStartPlace && (
+            <button
+              onClick={() => onStartPlace(point.id)}
+              style={{
+                flex: 1,
+                background: "rgba(58, 50, 38, 0.2)",
+                border: "1px solid var(--panel-border)",
+                color: "var(--text)",
+                padding: "8px 16px",
+                borderRadius: 6,
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {point.x !== null ? "Re-place" : "Place"}
+            </button>
+          )}
+          <a
+            href={point.notionUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flex: 1,
+              textAlign: "center",
+              background: "#F5A855",
+              color: "#3A3226",
+              padding: "8px 16px",
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            Open in Notion
+          </a>
+        </div>
       </div>
     </div>
   );
