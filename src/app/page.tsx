@@ -67,26 +67,27 @@ export default function Home() {
 
   // Handle pin placement
   const handlePlacePin = async (id: string, x: number, y: number) => {
+    // Optimistic update — show pin immediately
+    const prev = points;
+    setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, x, y } : p)));
+    setPlacingId(null);
+    setSelectedId(id);
+
     try {
       const res = await fetch("/api/place", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId: id, x, y }),
       });
-      if (res.ok) {
-        // Update local state immediately
-        setPoints((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, x, y } : p))
-        );
-        setPlacingId(null);
-        setSelectedId(id);
-      } else {
+      if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Failed to place pin");
+        alert(data.error || "Failed to save pin position");
+        setPoints(prev); // Revert on failure
       }
     } catch (err) {
-      console.error("Failed to place pin:", err);
-      alert("Failed to place pin");
+      console.error("Failed to save pin position:", err);
+      alert("Failed to save pin position");
+      setPoints(prev); // Revert on failure
     }
   };
 
