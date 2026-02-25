@@ -51,33 +51,53 @@ export default function MapCanvas({
     y: number;
   } | null>(null);
 
-  // Load map image and fit to viewport once ready
+  // Fit map to container (height-fit, horizontally centered)
+  const fitToView = useCallback(() => {
+    if (!containerRef.current || imgSize.w === 0 || imgSize.h === 0) return;
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+    if (ch === 0 || cw === 0) return;
+    const fitScale = ch / imgSize.h;
+    setScale(fitScale);
+    setPan({ x: (cw - imgSize.w * fitScale) / 2, y: 0 });
+  }, [imgSize]);
+
+  // Load map image
   useEffect(() => {
     const img = new Image();
     img.src = "/maps/city-macro.jpg";
     img.onload = () => {
       imgRef.current = img;
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-      setImgSize({ w, h });
+      setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
       setImgLoaded(true);
-
-      // Wait for layout then fit
-      const tryFit = () => {
-        if (!containerRef.current) return;
-        const cw = containerRef.current.clientWidth;
-        const ch = containerRef.current.clientHeight;
-        if (ch === 0 || cw === 0) {
-          requestAnimationFrame(tryFit);
-          return;
-        }
-        const fitScale = ch / h;
-        setScale(fitScale);
-        setPan({ x: (cw - w * fitScale) / 2, y: 0 });
-      };
-      requestAnimationFrame(tryFit);
     };
   }, []);
+
+  // Fit to viewport on load and re-fit on container resize
+  useEffect(() => {
+    if (!imgLoaded) return;
+
+    // Initial fit (wait for layout)
+    const tryFit = () => {
+      if (!containerRef.current) return;
+      const cw = containerRef.current.clientWidth;
+      const ch = containerRef.current.clientHeight;
+      if (ch === 0 || cw === 0) {
+        requestAnimationFrame(tryFit);
+        return;
+      }
+      fitToView();
+    };
+    requestAnimationFrame(tryFit);
+
+    // Re-fit on container resize (window resize, sidebar toggle, etc.)
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      fitToView();
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [imgLoaded, fitToView]);
 
   // Screen coords -> normalized map coords (0-1)
   const screenToMap = useCallback(
