@@ -24,8 +24,9 @@ export default function Home() {
         : "/api/notable-points";
       const res = await fetch(url);
       if (res.ok) {
-        const data = await res.json();
-        setPoints(data);
+        const data: NotablePoint[] = await res.json();
+        const HIDDEN_STATUSES = ["Postponed", "Archived"];
+        setPoints(data.filter((p) => !HIDDEN_STATUSES.includes(p.status ?? "")));
       }
     } catch (err) {
       console.error("Failed to fetch points:", err);

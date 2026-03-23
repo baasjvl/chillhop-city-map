@@ -14,6 +14,14 @@ import {
 } from "react-zoom-pan-pinch";
 import type { NotablePoint } from "@/lib/types";
 import { getTypeColor } from "@/lib/colors";
+import { applyAffine, invertAffine, type AffineTransform } from "@/lib/affine";
+
+interface MapConfig {
+  image: string;
+  width: number;
+  height: number;
+  transform: AffineTransform | null;
+}
 
 interface MapCanvasProps {
   points: NotablePoint[];
@@ -22,6 +30,16 @@ interface MapCanvasProps {
   onSelectPin: (id: string | null) => void;
   onPlacePin: (id: string, x: number, y: number) => void;
   sidebarOpen: boolean;
+}
+
+/** Map a pin's stored normalized coords to the current map's normalized coords */
+function pinToMap(
+  x: number,
+  y: number,
+  transform: AffineTransform | null
+): { x: number; y: number } {
+  if (!transform) return { x, y };
+  return applyAffine(transform, { x, y });
 }
 
 const PIN_RADIUS = 10;
@@ -42,6 +60,7 @@ export default function MapCanvas({
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
   const [containerWidth, setContainerWidth] = useState(0);
+  const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
 
   // Hover state
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -74,14 +93,28 @@ export default function MapCanvas({
   // Track whether selection came from map click (skip zoom-to)
   const selectedFromMapRef = useRef(false);
 
-  // Load map image
+  // Load map config, then map image
   useEffect(() => {
-    const img = new Image();
-    img.src = "/maps/city-macro.jpg";
-    img.onload = () => {
-      setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
-      setImgLoaded(true);
-    };
+    fetch("/api/map-config")
+      .then((r) => r.json())
+      .then((config: MapConfig) => {
+        setMapConfig(config);
+        const img = new Image();
+        img.src = config.image;
+        img.onload = () => {
+          setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+          setImgLoaded(true);
+        };
+      })
+      .catch(() => {
+        // Fallback to default
+        const img = new Image();
+        img.src = "/maps/city-macro.jpg";
+        img.onload = () => {
+          setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+          setImgLoaded(true);
+        };
+      });
   }, []);
 
   // Measure container width once for initial scale calculation
@@ -122,25 +155,28 @@ export default function MapCanvas({
     const wh = wrapper.clientHeight;
     const currentScale = transformStateRef.current.scale;
     const targetScale = Math.max(currentScale, initialScaleRef.current * 1.5);
-    const posX = ww / 2 - pin.x * imgSize.w * targetScale;
-    const posY = wh / 2 - pin.y * imgSize.h * targetScale;
+    const mapped = pinToMap(pin.x, pin.y, mapConfig?.transform ?? null);
+    const posX = ww / 2 - mapped.x * imgSize.w * targetScale;
+    const posY = wh / 2 - mapped.y * imgSize.h * targetScale;
     transformRef.current.setTransform(posX, posY, targetScale, 300);
-  }, [selectedId, points, imgSize]);
+  }, [selectedId, points, imgSize, mapConfig]);
 
-  // Screen coords -> normalized map coords (0-1)
-  const screenToMap = useCallback(
+  // Screen coords -> stored pin coords (0-1, in original map space)
+  const screenToPin = useCallback(
     (clientX: number, clientY: number) => {
       if (!containerRef.current) return null;
       const rect = containerRef.current.getBoundingClientRect();
       const { scale, positionX, positionY } = transformStateRef.current;
       const imgX = (clientX - rect.left - positionX) / scale;
       const imgY = (clientY - rect.top - positionY) / scale;
-      return {
-        x: imgX / imgSize.w,
-        y: imgY / imgSize.h,
-      };
+      // Normalized new-map coords
+      const mapCoord = { x: imgX / imgSize.w, y: imgY / imgSize.h };
+      // Invert through the calibration transform to get pin-space coords
+      const t = mapConfig?.transform ?? null;
+      if (!t) return mapCoord;
+      return applyAffine(invertAffine(t), mapCoord);
     },
-    [imgSize]
+    [imgSize, mapConfig]
   );
 
   // Find pin at screen position
@@ -151,18 +187,20 @@ export default function MapCanvas({
       const relX = clientX - rect.left;
       const relY = clientY - rect.top;
       const { scale, positionX, positionY } = transformStateRef.current;
+      const t = mapConfig?.transform ?? null;
 
       const placed = points.filter((p) => p.x !== null && p.y !== null);
       for (let i = placed.length - 1; i >= 0; i--) {
         const p = placed[i];
-        const px = p.x! * imgSize.w * scale + positionX;
-        const py = p.y! * imgSize.h * scale + positionY;
+        const mapped = pinToMap(p.x!, p.y!, t);
+        const px = mapped.x * imgSize.w * scale + positionX;
+        const py = mapped.y * imgSize.h * scale + positionY;
         const dist = Math.sqrt((relX - px) ** 2 + (relY - py) ** 2);
         if (dist <= PIN_RADIUS_HOVER + 4) return p;
       }
       return null;
     },
-    [points, imgSize]
+    [points, imgSize, mapConfig]
   );
 
   // Mouse handlers
@@ -182,7 +220,7 @@ export default function MapCanvas({
   const handleMouseMove = (e: ReactMouseEvent) => {
     // Pin dragging
     if (draggingId) {
-      const pos = screenToMap(e.clientX, e.clientY);
+      const pos = screenToPin(e.clientX, e.clientY);
       if (pos) {
         setDraggingPos({
           x: Math.max(0, Math.min(1, pos.x)),
@@ -193,7 +231,7 @@ export default function MapCanvas({
     }
 
     if (placingId) {
-      setCursorMapPos(screenToMap(e.clientX, e.clientY));
+      setCursorMapPos(screenToPin(e.clientX, e.clientY));
       return;
     }
 
@@ -234,7 +272,7 @@ export default function MapCanvas({
     }
 
     if (placingId) {
-      const pos = screenToMap(e.clientX, e.clientY);
+      const pos = screenToPin(e.clientX, e.clientY);
       if (pos && pos.x >= 0 && pos.x <= 1 && pos.y >= 0 && pos.y <= 1) {
         onPlacePin(placingId, pos.x, pos.y);
       }
@@ -301,7 +339,7 @@ export default function MapCanvas({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/maps/city-macro.jpg"
+              src={mapConfig?.image ?? "/maps/city-macro.jpg"}
               alt="City map"
               width={imgSize.w}
               height={imgSize.h}
@@ -324,11 +362,14 @@ export default function MapCanvas({
         const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
         const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
 
+        // Map stored pin coords to current map's coordinate space
+        const mapped = pinToMap(pinX, pinY, mapConfig?.transform ?? null);
+
         // Screen position from transform state
         const screenX =
-          pinX * imgSize.w * transformState.scale + transformState.positionX;
+          mapped.x * imgSize.w * transformState.scale + transformState.positionX;
         const screenY =
-          pinY * imgSize.h * transformState.scale + transformState.positionY;
+          mapped.y * imgSize.h * transformState.scale + transformState.positionY;
 
         return (
           <div
@@ -386,15 +427,17 @@ export default function MapCanvas({
       })}
 
       {/* Placement preview */}
-      {placingId && cursorMapPos && (
+      {placingId && cursorMapPos && (() => {
+        const cursorMapped = pinToMap(cursorMapPos.x, cursorMapPos.y, mapConfig?.transform ?? null);
+        return (
         <div
           style={{
             position: "absolute",
             left:
-              cursorMapPos.x * imgSize.w * transformState.scale +
+              cursorMapped.x * imgSize.w * transformState.scale +
               transformState.positionX,
             top:
-              cursorMapPos.y * imgSize.h * transformState.scale +
+              cursorMapped.y * imgSize.h * transformState.scale +
               transformState.positionY,
             transform: "translate(-50%, -50%)",
             zIndex: 30,
@@ -411,7 +454,8 @@ export default function MapCanvas({
             }}
           />
         </div>
-      )}
+        );
+      })()}
 
       {/* Zoom indicator */}
       <div
