@@ -4,24 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import type { NotablePoint } from "@/lib/types";
 import { getTypeColor, getStatusColor } from "@/lib/colors";
 
-const ALL_STATUSES = [
-  "Placeholder",
-  "WIP",
-  "Ready for Review",
-  "Ready to Implement",
-  "Implemented",
-  "Postponed",
-  "Archived",
-];
-
 interface DetailPanelProps {
   point: NotablePoint | null;
+  dbStatuses: string[];
   onClose: () => void;
   onStartPlace?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
 }
 
-export default function DetailPanel({ point, onClose, onStartPlace, onUpdateStatus }: DetailPanelProps) {
+export default function DetailPanel({ point, dbStatuses, onClose, onStartPlace, onUpdateStatus }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -159,7 +150,7 @@ export default function DetailPanel({ point, onClose, onStartPlace, onUpdateStat
                   minWidth: 160,
                 }}
               >
-                {ALL_STATUSES.map((s) => {
+                {dbStatuses.map((s) => {
                   const c = getStatusColor(s);
                   return (
                     <button

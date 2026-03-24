@@ -8,6 +8,8 @@ const HIDDEN_BY_DEFAULT = new Set(["Postponed", "Archived"]);
 
 interface SidebarProps {
   points: NotablePoint[];
+  dbTypes: string[];
+  dbStatuses: string[];
   selectedId: string | null;
   placingId: string | null;
   isOpen: boolean;
@@ -21,6 +23,8 @@ interface SidebarProps {
 
 export default function Sidebar({
   points,
+  dbTypes,
+  dbStatuses,
   selectedId,
   placingId,
   isOpen,
@@ -31,18 +35,20 @@ export default function Sidebar({
   onCreatePoint,
   onRemovePin,
 }: SidebarProps) {
-  // Derive unique types and statuses from data
+  // Use schema-provided options, fall back to data-derived
   const allTypes = useMemo(() => {
+    if (dbTypes.length > 0) return dbTypes;
     const set = new Set<string>();
     points.forEach((p) => { if (p.type) set.add(p.type); });
     return [...set].sort();
-  }, [points]);
+  }, [dbTypes, points]);
 
   const allStatuses = useMemo(() => {
+    if (dbStatuses.length > 0) return dbStatuses;
     const set = new Set<string>();
     points.forEach((p) => { if (p.status) set.add(p.status); });
     return [...set].sort();
-  }, [points]);
+  }, [dbStatuses, points]);
 
   const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);

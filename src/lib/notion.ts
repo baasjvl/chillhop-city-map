@@ -47,6 +47,40 @@ function getStatus(prop: unknown): string | null {
   return p?.status?.name ?? p?.select?.name ?? null;
 }
 
+export interface DatabaseOptions {
+  types: string[];
+  statuses: string[];
+}
+
+export async function getDatabaseOptions(): Promise<DatabaseOptions> {
+  const db = await notion.databases.retrieve({ database_id: DB_NOTABLE_POINTS });
+  const props = db.properties as Record<string, Record<string, unknown>>;
+
+  const typeProp = props["Type"] || props["Category"];
+  const statusProp = props["Status"];
+
+  const types: string[] = [];
+  const statuses: string[] = [];
+
+  if (typeProp) {
+    const opts = (typeProp as { select?: { options?: Array<{ name: string }> } }).select?.options;
+    if (opts) types.push(...opts.map((o) => o.name));
+  }
+
+  if (statusProp) {
+    // Handle both "status" and "select" property types
+    if (statusProp.type === "status") {
+      const groups = (statusProp as { status?: { groups?: Array<{ option_ids: string[] }>; options?: Array<{ id: string; name: string }> } }).status;
+      if (groups?.options) statuses.push(...groups.options.map((o) => o.name));
+    } else {
+      const opts = (statusProp as { select?: { options?: Array<{ name: string }> } }).select?.options;
+      if (opts) statuses.push(...opts.map((o) => o.name));
+    }
+  }
+
+  return { types, statuses };
+}
+
 export async function getNotablePoints(
   bustCache = false
 ): Promise<NotablePoint[]> {

@@ -9,6 +9,7 @@ import DetailPanel from "@/components/DetailPanel";
 
 export default function Home() {
   const [points, setPoints] = useState<NotablePoint[]>([]);
+  const [dbOptions, setDbOptions] = useState<{ types: string[]; statuses: string[] }>({ types: [], statuses: [] });
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placingId, setPlacingId] = useState<string | null>(null);
@@ -24,8 +25,9 @@ export default function Home() {
         : "/api/notable-points";
       const res = await fetch(url);
       if (res.ok) {
-        const data: NotablePoint[] = await res.json();
-        setPoints(data);
+        const data = await res.json();
+        setPoints(data.points);
+        if (data.options) setDbOptions(data.options);
       }
     } catch (err) {
       console.error("Failed to fetch points:", err);
@@ -206,6 +208,8 @@ export default function Home() {
       />
       <Sidebar
         points={points}
+        dbTypes={dbOptions.types}
+        dbStatuses={dbOptions.statuses}
         selectedId={selectedId}
         placingId={placingId}
         isOpen={sidebarOpen}
@@ -226,6 +230,7 @@ export default function Home() {
       />
       <DetailPanel
         point={selectedPoint}
+        dbStatuses={dbOptions.statuses}
         onClose={() => setSelectedId(null)}
         onStartPlace={isAuthenticated ? handleStartPlace : undefined}
         onUpdateStatus={isAuthenticated ? handleUpdateStatus : undefined}
