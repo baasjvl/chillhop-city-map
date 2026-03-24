@@ -25,8 +25,7 @@ export default function Home() {
       const res = await fetch(url);
       if (res.ok) {
         const data: NotablePoint[] = await res.json();
-        const HIDDEN_STATUSES = ["Postponed", "Archived"];
-        setPoints(data.filter((p) => !HIDDEN_STATUSES.includes(p.status ?? "")));
+        setPoints(data);
       }
     } catch (err) {
       console.error("Failed to fetch points:", err);
@@ -136,6 +135,26 @@ export default function Home() {
     }
   };
 
+  // Remove pin coordinates (unplace)
+  const handleRemovePin = async (id: string) => {
+    const prev = points;
+    setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, x: null, y: null } : p)));
+    if (selectedId === id) setSelectedId(null);
+
+    try {
+      const res = await fetch("/api/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: id, x: null, y: null }),
+      });
+      if (!res.ok) {
+        setPoints(prev);
+      }
+    } catch {
+      setPoints(prev);
+    }
+  };
+
   // Start placement mode
   const handleStartPlace = (id: string) => {
     if (!isAuthenticated) {
@@ -195,6 +214,7 @@ export default function Home() {
         onSelectPin={setSelectedId}
         onStartPlace={handleStartPlace}
         onCreatePoint={handleCreatePoint}
+        onRemovePin={handleRemovePin}
       />
       <MapCanvas
         points={points}

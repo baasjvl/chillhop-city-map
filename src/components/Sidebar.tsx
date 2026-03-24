@@ -10,6 +10,16 @@ const ALL_STATUSES = [
   "Ready for Review",
   "Ready to Implement",
   "Implemented",
+  "Postponed",
+  "Archived",
+];
+
+const DEFAULT_ACTIVE_STATUSES = [
+  "Placeholder",
+  "WIP",
+  "Ready for Review",
+  "Ready to Implement",
+  "Implemented",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,6 +28,8 @@ const STATUS_COLORS: Record<string, string> = {
   "Ready for Review": "#5AADE8",
   "Ready to Implement": "#E89A5A",
   Implemented: "#6BBF6B",
+  Postponed: "#7A6E62",
+  Archived: "#5A524A",
 };
 
 interface SidebarProps {
@@ -30,6 +42,7 @@ interface SidebarProps {
   onSelectPin: (id: string) => void;
   onStartPlace: (id: string) => void;
   onCreatePoint: (name: string) => void;
+  onRemovePin: (id: string) => void;
 }
 
 export default function Sidebar({
@@ -42,12 +55,13 @@ export default function Sidebar({
   onSelectPin,
   onStartPlace,
   onCreatePoint,
+  onRemovePin,
 }: SidebarProps) {
   const [activeTypes, setActiveTypes] = useState<Set<string>>(
     new Set(Object.keys(TYPE_COLORS))
   );
   const [activeStatuses, setActiveStatuses] = useState<Set<string>>(
-    new Set(ALL_STATUSES)
+    new Set(DEFAULT_ACTIVE_STATUSES)
   );
   const [searchText, setSearchText] = useState("");
   const [newPointName, setNewPointName] = useState("");
@@ -412,6 +426,30 @@ export default function Sidebar({
                   <span style={{ fontSize: 10, color: STATUS_COLORS[p.status] ?? "var(--text-muted)", flexShrink: 0 }}>
                     {p.status}
                   </span>
+                )}
+                {isAuthenticated && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemovePin(p.id);
+                    }}
+                    title="Remove pin from map"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--text-muted)",
+                      fontSize: 10,
+                      cursor: "pointer",
+                      padding: "2px 4px",
+                      flexShrink: 0,
+                      opacity: 0.5,
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
+                  >
+                    &#x2715;
+                  </button>
                 )}
               </div>
             ))

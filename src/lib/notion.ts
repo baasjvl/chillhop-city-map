@@ -174,8 +174,8 @@ export async function createPoint(name: string): Promise<NotablePoint> {
 
 export async function placePoint(
   pageId: string,
-  x: number,
-  y: number
+  x: number | null,
+  y: number | null
 ): Promise<void> {
   // Determine the correct property names by checking which exists
   const page = await notion.pages.retrieve({ page_id: pageId });

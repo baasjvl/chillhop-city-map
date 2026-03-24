@@ -13,9 +13,22 @@ export async function POST(request: NextRequest) {
   try {
     const { pageId, x, y } = await request.json();
 
-    if (!pageId || typeof x !== "number" || typeof y !== "number") {
+    if (!pageId) {
       return NextResponse.json(
-        { error: "Missing pageId, x, or y" },
+        { error: "Missing pageId" },
+        { status: 400 }
+      );
+    }
+
+    // Allow null to clear coordinates
+    if (x === null && y === null) {
+      await placePoint(pageId, null, null);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (typeof x !== "number" || typeof y !== "number") {
+      return NextResponse.json(
+        { error: "Missing x or y" },
         { status: 400 }
       );
     }
