@@ -149,12 +149,26 @@ export default function MapCanvas({
     const relX = clientX - rect.left;
     const relY = clientY - rect.top;
     const { scale, positionX, positionY } = transformStateRef.current;
+    const boost = 1 + Math.max(0, Math.log2(scale)) * 0.2;
     for (let i = allPins.length - 1; i >= 0; i--) {
       const p = allPins[i];
       const px = p.x * imgSize.w * scale + positionX;
       const py = p.y * imgSize.h * scale + positionY;
-      const dist = Math.sqrt((relX - px) ** 2 + (relY - py) ** 2);
-      if (dist <= PIN_SIZE_HOVER / 2 + 4) return p;
+
+      if (p.kind === "poi") {
+        // Marker shape: anchor is at bottom tip, round part is above
+        const markerH = PIN_SIZE_HOVER * 1.3 * boost;
+        const markerW = PIN_SIZE_HOVER * boost;
+        // Check if click is within the marker bounding box
+        const dx = Math.abs(relX - px);
+        const dy = py - relY; // positive = above anchor (inside marker)
+        if (dx <= markerW / 2 + 4 && dy >= -4 && dy <= markerH + 4) return p;
+      } else {
+        // Diamond tag: centered on the point
+        const hitR = TAG_SIZE_HOVER / 2 * boost + 4;
+        const dist = Math.sqrt((relX - px) ** 2 + (relY - py) ** 2);
+        if (dist <= hitR) return p;
+      }
     }
     return null;
   }, [allPins, imgSize]);
