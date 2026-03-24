@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import type { NotablePoint, MapTag } from "@/lib/types";
+import type { NotablePoint, MapTag, Character } from "@/lib/types";
 import { getTypeColor, getStatusColor, getTagTypeColor } from "@/lib/colors";
 
 interface DetailPanelProps {
   point?: NotablePoint | null;
   tag?: MapTag | null;
+  character?: Character | null;
   dbStatuses: string[];
   dbTagTypes?: string[];
   onClose: () => void;
@@ -18,6 +19,7 @@ interface DetailPanelProps {
 export default function DetailPanel({
   point,
   tag,
+  character,
   dbStatuses,
   dbTagTypes = [],
   onClose,
@@ -32,8 +34,9 @@ export default function DetailPanel({
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
 
-  const item = point || tag;
-  const isTag = !!tag && !point;
+  const item = point || tag || character;
+  const isTag = !!tag && !point && !character;
+  const isCharacter = !!character && !point && !tag;
 
   // Close menus on click outside
   useEffect(() => {
@@ -46,17 +49,18 @@ export default function DetailPanel({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showStatusMenu, showTagTypeMenu]);
 
-  // Load page content for POIs only
+  // Load page content for POIs and characters
+  const contentId = point?.id || character?.id;
   useEffect(() => {
-    if (!point) { setPageContent(null); setShowStatusMenu(false); return; }
+    if (!contentId) { setPageContent(null); setShowStatusMenu(false); return; }
     setLoadingContent(true);
     setPageContent(null);
-    fetch(`/api/page-content/${point.id}`)
+    fetch(`/api/page-content/${contentId}`)
       .then((r) => r.json())
       .then((data) => setPageContent(data.content || ""))
       .catch(() => setPageContent(null))
       .finally(() => setLoadingContent(false));
-  }, [point?.id]);
+  }, [contentId]);
 
   // Reset tag menus on tag change
   useEffect(() => {
@@ -65,7 +69,7 @@ export default function DetailPanel({
 
   if (!item) return null;
 
-  const notionUrl = point?.notionUrl || tag?.notionUrl || "";
+  const notionUrl = point?.notionUrl || tag?.notionUrl || character?.notionUrl || "";
 
   return (
     <div
@@ -77,7 +81,9 @@ export default function DetailPanel({
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 16, borderBottom: "1px solid var(--panel-border)" }}>
-        {isTag ? (
+        {isCharacter ? (
+          <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#F5A855", flexShrink: 0 }} />
+        ) : isTag ? (
           <span style={{ width: 10, height: 10, transform: "rotate(45deg)", borderRadius: 2, background: getTagTypeColor(tag!.tagType), flexShrink: 0 }} />
         ) : (
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: getTypeColor(point!.type), flexShrink: 0 }} />
@@ -194,6 +200,22 @@ export default function DetailPanel({
           </>
         )}
 
+        {/* Character: status & page content */}
+        {character && (
+          <>
+            {character.status && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: getStatusColor(character.status) }} />
+                {character.status}
+              </div>
+            )}
+            <div style={{ height: 1, background: "var(--panel-border)" }} />
+            {loadingContent && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading content...</div>}
+            {!loadingContent && pageContent && <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{pageContent}</div>}
+            {!loadingContent && pageContent === "" && <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No content on this page yet.</div>}
+          </>
+        )}
+
         {/* POI-specific content */}
         {point && (
           <>
@@ -222,15 +244,15 @@ export default function DetailPanel({
         )}
 
         {/* Coordinates */}
-        {item.x !== null && item.y !== null && (
+        {!isCharacter && "x" in item && item.x !== null && "y" in item && item.y !== null && (
           <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
-            x: {item.x!.toFixed(4)} &nbsp; y: {item.y!.toFixed(4)}
+            x: {(item.x as number).toFixed(4)} &nbsp; y: {(item.y as number).toFixed(4)}
           </div>
         )}
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          {onStartPlace && (
+          {onStartPlace && !isCharacter && (
             <button
               onClick={() => onStartPlace(item.id)}
               style={{
@@ -238,7 +260,7 @@ export default function DetailPanel({
                 color: "var(--text)", padding: "8px 16px", borderRadius: 6, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              {item.x !== null ? "Re-place" : "Place"}
+              {"x" in item && item.x !== null ? "Re-place" : "Place"}
             </button>
           )}
           <a

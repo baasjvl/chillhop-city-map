@@ -346,15 +346,14 @@ export default function MapCanvas({
           <div key={`ghost-${p.id}`} style={{
             position: "absolute", left: sx, top: sy, transform: "translate(-50%, -100%)",
             zIndex: 5, pointerEvents: "none",
-            opacity: 0.35,
           }}>
             <svg width={ghostW} height={ghostH} viewBox="0 0 30 39" style={{
-              filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
+              filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5)) drop-shadow(0 0 4px rgba(255,255,255,0.2))",
             }}>
               <path
                 d="M15 38 C15 38 1 24 1 14 A14 14 0 1 1 29 14 C29 24 15 38 15 38Z"
                 fill={color}
-                stroke="rgba(255,255,255,0.6)"
+                stroke="rgba(255,255,255,0.9)"
                 strokeWidth={2}
               />
             </svg>

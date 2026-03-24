@@ -190,6 +190,25 @@ export default function Home() {
     setCharacters((cs) => cs.map((c) => c.id === selectedCharacter.id ? { ...c, routinesRaw: newRaw } : c));
   };
 
+  const handleEditStop = (index: number, updates: Partial<RoutineStop>) => {
+    if (!selectedCharacter || !activeSchedule) return;
+    const schedules = parseRoutines(selectedCharacter.routinesRaw);
+    const schedule = schedules.find((s) => s.label === selectedScheduleLabel);
+    if (!schedule || !schedule.stops[index]) return;
+    Object.assign(schedule.stops[index], updates);
+    if (updates.time) schedule.stops.sort((a, b) => a.time.localeCompare(b.time));
+    const newRaw = serializeRoutines(schedules);
+    setCharacters((cs) => cs.map((c) => c.id === selectedCharacter.id ? { ...c, routinesRaw: newRaw } : c));
+  };
+
+  const handleReorderSchedules = (newLabels: string[]) => {
+    if (!selectedCharacter) return;
+    const schedules = parseRoutines(selectedCharacter.routinesRaw);
+    const reordered = newLabels.map((l) => schedules.find((s) => s.label === l)!).filter(Boolean);
+    const newRaw = serializeRoutines(reordered);
+    setCharacters((cs) => cs.map((c) => c.id === selectedCharacter.id ? { ...c, routinesRaw: newRaw } : c));
+  };
+
   const handleRoutineMapClick = (x: number, y: number, nearestPoi: NotablePoint | null) => {
     setPendingStopCoord({
       x: nearestPoi?.x ?? x,
@@ -314,6 +333,8 @@ export default function Home() {
           onStartAddStop={() => setAddingStop(true)}
           onAddSchedule={handleAddSchedule}
           onRemoveStop={handleRemoveStop}
+          onEditStop={handleEditStop}
+          onReorderSchedules={handleReorderSchedules}
           onSaveRoutine={handleSaveRoutine}
         />
       )}
@@ -346,6 +367,14 @@ export default function Home() {
           onClose={() => selectTag(null)}
           onStartPlace={isAuthenticated ? handleStartPlaceTag : undefined}
           onUpdateTag={isAuthenticated ? handleUpdateTag : undefined}
+        />
+      )}
+      {viewMode === "routines" && selectedCharacter && (
+        <DetailPanel
+          point={null}
+          character={selectedCharacter}
+          dbStatuses={[]}
+          onClose={() => setSelectedCharacterId(null)}
         />
       )}
 
