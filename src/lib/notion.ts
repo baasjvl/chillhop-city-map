@@ -34,6 +34,19 @@ function getNumber(prop: unknown): number | null {
   return p?.number ?? null;
 }
 
+function getStatus(prop: unknown): string | null {
+  // Handles both Notion "status" type and "select" type
+  const p = prop as {
+    type?: string;
+    status?: { name: string } | null;
+    select?: { name: string } | null;
+  };
+  if (p?.type === "status") return p?.status?.name ?? null;
+  if (p?.type === "select") return p?.select?.name ?? null;
+  // Fallback: try both
+  return p?.status?.name ?? p?.select?.name ?? null;
+}
+
 export async function getNotablePoints(
   bustCache = false
 ): Promise<NotablePoint[]> {
@@ -60,7 +73,7 @@ export async function getNotablePoints(
         name: getTitle(props["Name"]),
         description: getRichText(props["Description"]),
         type: getSelect(props["Type"]) || getSelect(props["Category"]),
-        status: getSelect(props["Status"]),
+        status: getStatus(props["Status"]),
         engagementLayers: getMultiSelect(props["Engagement Layer"]),
         tags: getMultiSelect(props["Tags"]),
         x: getNumber(props["X (Map)"]) ?? getNumber(props["X"]),
@@ -136,21 +149,41 @@ export async function updatePointStatus(
   pageId: string,
   status: string
 ): Promise<void> {
+  // Determine the property type first
+  const page = await notion.pages.retrieve({ page_id: pageId });
+  const props = (page as { properties: Record<string, { type: string }> }).properties;
+  const statusProp = props["Status"];
+
+  const update: Record<string, unknown> = {};
+  if (statusProp?.type === "status") {
+    update["Status"] = { status: { name: status } };
+  } else {
+    update["Status"] = { select: { name: status } };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await notion.pages.update({
     page_id: pageId,
-    properties: {
-      Status: { select: { name: status } },
-    },
-  });
+    properties: update,
+  } as any);
   cache = null;
 }
 
 export async function createPoint(name: string): Promise<NotablePoint> {
-  const page = await notion.pages.create({
+  // Detect Status property type from database schema
+  const db = await notion.databases.retrieve({ database_id: DB_NOTABLE_POINTS });
+  const statusPropType = (db.properties as Record<string, { type: string }>)["Status"]?.type;
+  const statusValue =
+    statusPropType === "status"
+      ? { status: { name: "Placeholder" } }
+      : { select: { name: "Placeholder" } };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const page = await (notion.pages.create as any)({
     parent: { database_id: DB_NOTABLE_POINTS },
     properties: {
       Name: { title: [{ text: { content: name } }] },
-      Status: { select: { name: "Placeholder" } },
+      Status: statusValue,
     },
   });
 
