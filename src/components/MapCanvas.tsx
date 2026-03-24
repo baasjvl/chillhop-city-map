@@ -34,10 +34,10 @@ interface MapCanvasProps {
   sidebarOpen: boolean;
 }
 
-const PIN_RADIUS = 10;
-const PIN_RADIUS_HOVER = 13;
-const TAG_SIZE = 12;
-const TAG_SIZE_HOVER = 15;
+const PIN_SIZE = 28;
+const PIN_SIZE_HOVER = 34;
+const TAG_SIZE = 22;
+const TAG_SIZE_HOVER = 26;
 const LABEL_OFFSET = 20;
 const DRAG_THRESHOLD = 5;
 
@@ -154,7 +154,7 @@ export default function MapCanvas({
       const px = p.x * imgSize.w * scale + positionX;
       const py = p.y * imgSize.h * scale + positionY;
       const dist = Math.sqrt((relX - px) ** 2 + (relY - py) ** 2);
-      if (dist <= PIN_RADIUS_HOVER + 4) return p;
+      if (dist <= PIN_SIZE_HOVER / 2 + 4) return p;
     }
     return null;
   }, [allPins, imgSize]);
@@ -223,7 +223,8 @@ export default function MapCanvas({
   if (placingId) cursor = "crosshair";
   if (hoveredId && !placingId && !draggingId) cursor = "pointer";
 
-  const pinScaleBoost = transformState.scale > 3 ? transformState.scale / 3 : 1;
+  // Gentle scale-up when zooming in (grows ~20% per doubling of zoom past 100%)
+  const pinScaleBoost = 1 + Math.max(0, Math.log2(transformState.scale)) * 0.2;
 
   // Helper to get screen position
   const toScreen = (x: number, y: number) => ({
@@ -289,30 +290,51 @@ export default function MapCanvas({
         const isHovered = p.id === hoveredId;
         const isDragging = p.id === draggingId;
         const color = getTypeColor(p.type);
-        const r = (isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS) * pinScaleBoost;
+        const pinW = (isSelected || isHovered ? PIN_SIZE_HOVER : PIN_SIZE) * pinScaleBoost;
         const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
         const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
         const { sx, sy } = toScreen(pinX, pinY);
 
+        const pinH = pinW * 1.3; // taller than wide for the pointed bottom
+        const iconSize = Math.max(10, pinW * 0.5);
+
         return (
           <div key={p.id} style={{
-            position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)",
+            position: "absolute", left: sx, top: sy, transform: "translate(-50%, -100%)",
             zIndex: isDragging ? 30 : isSelected ? 20 : isHovered ? 15 : 10,
             pointerEvents: "none",
           }}>
-            <div style={{
-              width: r * 2, height: r * 2, borderRadius: "50%", background: color,
-              border: "2px solid rgba(255,255,255,0.9)",
-              boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
-              transition: "width 0.1s, height 0.1s",
+            <svg width={pinW} height={pinH} viewBox="0 0 30 39" style={{
+              filter: isDragging
+                ? "drop-shadow(0 2px 4px rgba(0,0,0,0.6))"
+                : "drop-shadow(0 1px 3px rgba(0,0,0,0.5)) drop-shadow(0 0 4px rgba(255,255,255,0.2))",
               opacity: isDragging ? 0.8 : 1,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "width 0.1s, height 0.1s",
             }}>
-              {getPoiIcon(p.type, { size: Math.max(10, r), color: "rgba(255,255,255,0.9)" })}
+              {/* Marker shape: rounded top, pointed bottom */}
+              <path
+                d="M15 38 C15 38 1 24 1 14 A14 14 0 1 1 29 14 C29 24 15 38 15 38Z"
+                fill={color}
+                stroke="rgba(255,255,255,0.9)"
+                strokeWidth={2}
+              />
+            </svg>
+            {/* Icon centered in the round part */}
+            <div style={{
+              position: "absolute",
+              top: pinH * 0.02,
+              left: 0,
+              width: pinW,
+              height: pinW,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              {getPoiIcon(p.type, { size: iconSize, color: "rgba(255,255,255,0.9)" })}
             </div>
             {(isHovered || isSelected) && !isDragging && (
               <div style={{
-                position: "absolute", top: LABEL_OFFSET, left: "50%", transform: "translateX(-50%)",
+                position: "absolute", top: pinH + 4, left: "50%", transform: "translateX(-50%)",
                 fontSize: 11, whiteSpace: "nowrap", background: "rgba(58, 50, 38, 0.9)",
                 padding: "2px 8px", borderRadius: 4, color: "#F5F0E8", pointerEvents: "none",
               }}>
