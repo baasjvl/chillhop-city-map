@@ -191,7 +191,30 @@ export default function MapCanvas({
     }
     if (placingId) { setCursorMapPos(screenToMap(e.clientX, e.clientY)); return; }
     const pin = findPinAt(e.clientX, e.clientY);
-    setHoveredId(pin?.id ?? null);
+    if (pin) { setHoveredId(pin.id); return; }
+    // Check ghost POI pins for hover (label only, not interactive)
+    if (ghostPoints.length > 0 && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const relX = e.clientX - rect.left;
+      const relY = e.clientY - rect.top;
+      const { scale, positionX, positionY } = transformStateRef.current;
+      const boost = 1 + Math.max(0, Math.log2(scale)) * 0.2;
+      const markerH = PIN_SIZE * 1.3 * boost;
+      const markerW = PIN_SIZE * boost;
+      for (let i = ghostPoints.length - 1; i >= 0; i--) {
+        const gp = ghostPoints[i];
+        if (gp.x === null || gp.y === null) continue;
+        const px = gp.x * imgSize.w * scale + positionX;
+        const py = gp.y * imgSize.h * scale + positionY;
+        const dx = Math.abs(relX - px);
+        const dy = py - relY;
+        if (dx <= markerW / 2 + 4 && dy >= -4 && dy <= markerH + 4) {
+          setHoveredId(gp.id);
+          return;
+        }
+      }
+    }
+    setHoveredId(null);
   };
 
   const handleMouseUp = () => {
@@ -283,17 +306,45 @@ export default function MapCanvas({
         </TransformWrapper>
       )}
 
-      {/* Ghost POI pins (dimmed, non-interactive) */}
+      {/* Ghost POI pins (dimmed, with hover labels) */}
       {ghostPoints.filter((p) => p.x !== null && p.y !== null).map((p) => {
+        const color = getTypeColor(p.type);
+        const ghostW = PIN_SIZE * pinScaleBoost;
+        const ghostH = ghostW * 1.3;
+        const iconSize = Math.max(10, ghostW * 0.5);
         const { sx, sy } = toScreen(p.x!, p.y!);
+        const isGhostHovered = p.id === hoveredId;
         return (
-          <div key={`ghost-${p.id}`} style={{ position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)", zIndex: 5, pointerEvents: "none" }}>
+          <div key={`ghost-${p.id}`} style={{
+            position: "absolute", left: sx, top: sy, transform: "translate(-50%, -100%)",
+            zIndex: 5, pointerEvents: "none",
+            opacity: 0.35,
+          }}>
+            <svg width={ghostW} height={ghostH} viewBox="0 0 30 39" style={{
+              filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
+            }}>
+              <path
+                d="M15 38 C15 38 1 24 1 14 A14 14 0 1 1 29 14 C29 24 15 38 15 38Z"
+                fill={color}
+                stroke="rgba(255,255,255,0.6)"
+                strokeWidth={2}
+              />
+            </svg>
             <div style={{
-              width: 12, height: 12, borderRadius: "50%",
-              background: getTypeColor(p.type),
-              border: "1px solid rgba(255,255,255,0.4)",
-              opacity: 0.3,
-            }} />
+              position: "absolute", top: ghostH * 0.02, left: 0, width: ghostW, height: ghostW,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {getPoiIcon(p.type, { size: iconSize, color: "rgba(255,255,255,0.9)" })}
+            </div>
+            {isGhostHovered && (
+              <div style={{
+                position: "absolute", top: ghostH + 4, left: "50%", transform: "translateX(-50%)",
+                fontSize: 11, whiteSpace: "nowrap", background: "rgba(58, 50, 38, 0.9)",
+                padding: "2px 8px", borderRadius: 4, color: "#F5F0E8", pointerEvents: "none",
+              }}>
+                {p.name}
+              </div>
+            )}
           </div>
         );
       })}
