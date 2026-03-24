@@ -1,36 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { NotablePoint } from "@/lib/types";
-import { getTypeColor, TYPE_COLORS } from "@/lib/colors";
+import { getTypeColor, getStatusColor } from "@/lib/colors";
 
-const ALL_STATUSES = [
-  "Placeholder",
-  "WIP",
-  "Ready for Review",
-  "Ready to Implement",
-  "Implemented",
-  "Postponed",
-  "Archived",
-];
-
-const DEFAULT_ACTIVE_STATUSES = [
-  "Placeholder",
-  "WIP",
-  "Ready for Review",
-  "Ready to Implement",
-  "Implemented",
-];
-
-const STATUS_COLORS: Record<string, string> = {
-  Placeholder: "#9E8E7E",
-  WIP: "#E8C05A",
-  "Ready for Review": "#5AADE8",
-  "Ready to Implement": "#E89A5A",
-  Implemented: "#6BBF6B",
-  Postponed: "#7A6E62",
-  Archived: "#5A524A",
-};
+const HIDDEN_BY_DEFAULT = new Set(["Postponed", "Archived"]);
 
 interface SidebarProps {
   points: NotablePoint[];
@@ -57,19 +31,36 @@ export default function Sidebar({
   onCreatePoint,
   onRemovePin,
 }: SidebarProps) {
-  const [activeTypes, setActiveTypes] = useState<Set<string>>(
-    new Set(Object.keys(TYPE_COLORS))
-  );
-  const [activeStatuses, setActiveStatuses] = useState<Set<string>>(
-    new Set(DEFAULT_ACTIVE_STATUSES)
-  );
+  // Derive unique types and statuses from data
+  const allTypes = useMemo(() => {
+    const set = new Set<string>();
+    points.forEach((p) => { if (p.type) set.add(p.type); });
+    return [...set].sort();
+  }, [points]);
+
+  const allStatuses = useMemo(() => {
+    const set = new Set<string>();
+    points.forEach((p) => { if (p.status) set.add(p.status); });
+    return [...set].sort();
+  }, [points]);
+
+  const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
+  const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);
+
+  // Lazy init: all types on, statuses on except hidden-by-default
+  const effectiveTypes = activeTypes ?? new Set(allTypes);
+  const effectiveStatuses = activeStatuses ?? new Set(allStatuses.filter((s) => !HIDDEN_BY_DEFAULT.has(s)));
+
+  const [showTypes, setShowTypes] = useState(false);
+  const [showStatuses, setShowStatuses] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [newPointName, setNewPointName] = useState("");
   const [showNewPoint, setShowNewPoint] = useState(false);
 
   const toggleType = (type: string) => {
     setActiveTypes((prev) => {
-      const next = new Set(prev);
+      const base = prev ?? new Set(allTypes);
+      const next = new Set(base);
       if (next.has(type)) next.delete(type);
       else next.add(type);
       return next;
@@ -78,7 +69,8 @@ export default function Sidebar({
 
   const toggleStatus = (status: string) => {
     setActiveStatuses((prev) => {
-      const next = new Set(prev);
+      const base = prev ?? new Set(allStatuses.filter((s) => !HIDDEN_BY_DEFAULT.has(s)));
+      const next = new Set(base);
       if (next.has(status)) next.delete(status);
       else next.add(status);
       return next;
@@ -89,9 +81,10 @@ export default function Sidebar({
   const unplaced = points.filter((p) => p.x === null || p.y === null);
 
   const filterPoint = (p: NotablePoint) => {
-    if (p.type && !activeTypes.has(p.type)) return false;
-    if (p.status && !activeStatuses.has(p.status)) return false;
-    if (!p.status && !activeStatuses.has("Placeholder")) return false;
+    if (p.type && !effectiveTypes.has(p.type)) return false;
+    if (!p.type && effectiveTypes.size < allTypes.length) return false;
+    if (p.status && !effectiveStatuses.has(p.status)) return false;
+    if (!p.status && effectiveStatuses.size < allStatuses.length) return false;
     if (searchText) {
       const q = searchText.toLowerCase();
       const inName = p.name.toLowerCase().includes(q);
@@ -111,6 +104,10 @@ export default function Sidebar({
     setNewPointName("");
     setShowNewPoint(false);
   };
+
+  // Count how many filters are active vs total
+  const typeFilterLabel = `Types (${effectiveTypes.size}/${allTypes.length})`;
+  const statusFilterLabel = `Status (${effectiveStatuses.size}/${allStatuses.length})`;
 
   return (
     <>
@@ -157,86 +154,118 @@ export default function Sidebar({
           overflow: "hidden",
         }}
       >
-        {/* Type filters */}
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
-          <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 8 }}>
-            Types
+        {/* Filters section */}
+        <div style={{ borderBottom: "1px solid var(--panel-border)" }}>
+          <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", padding: "12px 16px 0" }}>
+            Filters
           </h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {Object.entries(TYPE_COLORS).map(([type, color]) => {
-              const active = activeTypes.has(type);
-              return (
-                <button
-                  key={type}
-                  onClick={() => toggleType(type)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 10px",
-                    borderRadius: 12,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
-                    border: active ? `1px solid ${color}` : "1px solid transparent",
-                    color: active ? color : "var(--text-muted)",
-                    opacity: active ? 1 : 0.4,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: color,
-                    }}
-                  />
-                  {type}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Status filters */}
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
-          <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 8 }}>
-            Status
-          </h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {ALL_STATUSES.map((status) => {
-              const active = activeStatuses.has(status);
-              const color = STATUS_COLORS[status] ?? "var(--text-muted)";
-              return (
-                <button
-                  key={status}
-                  onClick={() => toggleStatus(status)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 10px",
-                    borderRadius: 12,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
-                    border: active ? `1px solid ${color}` : "1px solid transparent",
-                    color: active ? color : "var(--text-muted)",
-                    opacity: active ? 1 : 0.4,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: color,
-                    }}
-                  />
-                  {status}
-                </button>
-              );
-            })}
+          {/* Types dropdown */}
+          <div style={{ padding: "8px 16px" }}>
+            <button
+              onClick={() => setShowTypes(!showTypes)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "rgba(58, 50, 38, 0.2)",
+                border: "1px solid var(--panel-border)",
+                color: "var(--text)",
+                padding: "6px 10px",
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {typeFilterLabel}
+              <span style={{ fontSize: 10 }}>{showTypes ? "\u25B2" : "\u25BC"}</span>
+            </button>
+            {showTypes && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 8 }}>
+                {allTypes.map((type) => {
+                  const active = effectiveTypes.has(type);
+                  const color = getTypeColor(type);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => toggleType(type)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "4px 10px",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
+                        border: active ? `1px solid ${color}` : "1px solid transparent",
+                        color: active ? color : "var(--text-muted)",
+                        opacity: active ? 1 : 0.4,
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Statuses dropdown */}
+          <div style={{ padding: "0 16px 12px" }}>
+            <button
+              onClick={() => setShowStatuses(!showStatuses)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "rgba(58, 50, 38, 0.2)",
+                border: "1px solid var(--panel-border)",
+                color: "var(--text)",
+                padding: "6px 10px",
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {statusFilterLabel}
+              <span style={{ fontSize: 10 }}>{showStatuses ? "\u25B2" : "\u25BC"}</span>
+            </button>
+            {showStatuses && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 8 }}>
+                {allStatuses.map((status) => {
+                  const active = effectiveStatuses.has(status);
+                  const color = getStatusColor(status);
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => toggleStatus(status)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "4px 10px",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
+                        border: active ? `1px solid ${color}` : "1px solid transparent",
+                        color: active ? color : "var(--text-muted)",
+                        opacity: active ? 1 : 0.4,
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                      {status}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -423,7 +452,7 @@ export default function Sidebar({
                   {p.name}
                 </span>
                 {p.status && (
-                  <span style={{ fontSize: 10, color: STATUS_COLORS[p.status] ?? "var(--text-muted)", flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: getStatusColor(p.status), flexShrink: 0 }}>
                     {p.status}
                   </span>
                 )}

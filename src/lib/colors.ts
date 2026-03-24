@@ -11,10 +11,13 @@ export const TYPE_COLORS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
-  WIP: "#8B8178",
-  "Ready for Review": "#F5A855",
-  "Ready to Implement": "#5B9BD5",
+  Placeholder: "#9E8E7E",
+  WIP: "#E8C05A",
+  "Ready for Review": "#5AADE8",
+  "Ready to Implement": "#E89A5A",
   Implemented: "#6BBF6B",
+  Postponed: "#7A6E62",
+  Archived: "#5A524A",
 };
 
 export function getTypeColor(type: string | null): string {
