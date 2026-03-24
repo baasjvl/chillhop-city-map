@@ -12,11 +12,20 @@ import {
   TransformComponent,
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
-import type { NotablePoint } from "@/lib/types";
-import { getTypeColor } from "@/lib/colors";
+import type { NotablePoint, MapTag } from "@/lib/types";
+import { getTypeColor, getTagTypeColor } from "@/lib/colors";
+
+interface Pinnable {
+  id: string;
+  x: number;
+  y: number;
+  kind: "poi" | "tag";
+}
 
 interface MapCanvasProps {
   points: NotablePoint[];
+  tags?: MapTag[];
+  ghostPoints?: NotablePoint[];
   selectedId: string | null;
   placingId: string | null;
   onSelectPin: (id: string | null) => void;
@@ -26,11 +35,15 @@ interface MapCanvasProps {
 
 const PIN_RADIUS = 10;
 const PIN_RADIUS_HOVER = 13;
+const TAG_SIZE = 12;
+const TAG_SIZE_HOVER = 15;
 const LABEL_OFFSET = 20;
 const DRAG_THRESHOLD = 5;
 
 export default function MapCanvas({
   points,
+  tags = [],
+  ghostPoints = [],
   selectedId,
   placingId,
   onSelectPin,
@@ -44,36 +57,22 @@ export default function MapCanvas({
   const [containerWidth, setContainerWidth] = useState(0);
   const [mapImage, setMapImage] = useState("/maps/city-macro.jpg");
 
-  // Hover state
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  // Cursor position for placement preview
-  const [cursorMapPos, setCursorMapPos] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
-  // Pin dragging state
+  const [cursorMapPos, setCursorMapPos] = useState<{ x: number; y: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [draggingPos, setDraggingPos] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
+  const [draggingPos, setDraggingPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Transform state — ref for hit testing, state for rendering pin overlay
   const transformStateRef = useRef({ scale: 1, positionX: 0, positionY: 0 });
-  const [transformState, setTransformState] = useState({
-    scale: 1,
-    positionX: 0,
-    positionY: 0,
-  });
+  const [transformState, setTransformState] = useState({ scale: 1, positionX: 0, positionY: 0 });
   const initialScaleRef = useRef(1);
-
-  // Track mousedown position to distinguish clicks from drags
   const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
-
-  // Track whether selection came from map click (skip zoom-to)
   const selectedFromMapRef = useRef(false);
+
+  // Build combined interactive pin list
+  const allPins: Pinnable[] = [
+    ...points.filter((p) => p.x !== null && p.y !== null).map((p) => ({ id: p.id, x: p.x!, y: p.y!, kind: "poi" as const })),
+    ...tags.filter((t) => t.x !== null && t.y !== null).map((t) => ({ id: t.id, x: t.x!, y: t.y!, kind: "tag" as const })),
+  ];
 
   // Load map config, then map image
   useEffect(() => {
@@ -98,15 +97,11 @@ export default function MapCanvas({
       });
   }, []);
 
-  // Measure container width once for initial scale calculation
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
       const width = entries[0].contentRect.width;
-      if (width > 0) {
-        setContainerWidth(width);
-        observer.disconnect();
-      }
+      if (width > 0) { setContainerWidth(width); observer.disconnect(); }
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -119,16 +114,12 @@ export default function MapCanvas({
     if (ready) initialScaleRef.current = initialScale;
   }, [ready, initialScale]);
 
-  // Zoom to selected pin when selection comes from sidebar
+  // Zoom to selected pin from sidebar
   useEffect(() => {
     if (!selectedId || !transformRef.current) return;
-    if (selectedFromMapRef.current) {
-      selectedFromMapRef.current = false;
-      return;
-    }
-    const pin = points.find((p) => p.id === selectedId);
-    if (!pin || pin.x === null || pin.y === null) return;
-
+    if (selectedFromMapRef.current) { selectedFromMapRef.current = false; return; }
+    const pin = allPins.find((p) => p.id === selectedId);
+    if (!pin) return;
     const wrapper = transformRef.current.instance.wrapperComponent;
     if (!wrapper) return;
     const ww = wrapper.clientWidth;
@@ -138,89 +129,64 @@ export default function MapCanvas({
     const posX = ww / 2 - pin.x * imgSize.w * targetScale;
     const posY = wh / 2 - pin.y * imgSize.h * targetScale;
     transformRef.current.setTransform(posX, posY, targetScale, 300);
-  }, [selectedId, points, imgSize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, imgSize]);
 
-  // Screen coords -> normalized map coords (0-1)
-  const screenToMap = useCallback(
-    (clientX: number, clientY: number) => {
-      if (!containerRef.current) return null;
-      const rect = containerRef.current.getBoundingClientRect();
-      const { scale, positionX, positionY } = transformStateRef.current;
-      const imgX = (clientX - rect.left - positionX) / scale;
-      const imgY = (clientY - rect.top - positionY) / scale;
-      return {
-        x: imgX / imgSize.w,
-        y: imgY / imgSize.h,
-      };
-    },
-    [imgSize]
-  );
+  const screenToMap = useCallback((clientX: number, clientY: number) => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const { scale, positionX, positionY } = transformStateRef.current;
+    return {
+      x: (clientX - rect.left - positionX) / scale / imgSize.w,
+      y: (clientY - rect.top - positionY) / scale / imgSize.h,
+    };
+  }, [imgSize]);
 
-  // Find pin at screen position
-  const findPinAt = useCallback(
-    (clientX: number, clientY: number): NotablePoint | null => {
-      if (!containerRef.current) return null;
-      const rect = containerRef.current.getBoundingClientRect();
-      const relX = clientX - rect.left;
-      const relY = clientY - rect.top;
-      const { scale, positionX, positionY } = transformStateRef.current;
+  const findPinAt = useCallback((clientX: number, clientY: number): Pinnable | null => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    const relY = clientY - rect.top;
+    const { scale, positionX, positionY } = transformStateRef.current;
+    for (let i = allPins.length - 1; i >= 0; i--) {
+      const p = allPins[i];
+      const px = p.x * imgSize.w * scale + positionX;
+      const py = p.y * imgSize.h * scale + positionY;
+      const dist = Math.sqrt((relX - px) ** 2 + (relY - py) ** 2);
+      if (dist <= PIN_RADIUS_HOVER + 4) return p;
+    }
+    return null;
+  }, [allPins, imgSize]);
 
-      const placed = points.filter((p) => p.x !== null && p.y !== null);
-      for (let i = placed.length - 1; i >= 0; i--) {
-        const p = placed[i];
-        const px = p.x! * imgSize.w * scale + positionX;
-        const py = p.y! * imgSize.h * scale + positionY;
-        const dist = Math.sqrt((relX - px) ** 2 + (relY - py) ** 2);
-        if (dist <= PIN_RADIUS_HOVER + 4) return p;
-      }
-      return null;
-    },
-    [points, imgSize]
-  );
-
-  // Mouse handlers
   const handleMouseDown = (e: ReactMouseEvent) => {
     mouseDownPosRef.current = { x: e.clientX, y: e.clientY };
-
     if (placingId) return;
-
     const pin = findPinAt(e.clientX, e.clientY);
     if (pin && pin.id === selectedId) {
       setDraggingId(pin.id);
-      setDraggingPos({ x: pin.x!, y: pin.y! });
+      setDraggingPos({ x: pin.x, y: pin.y });
     }
   };
 
   const handleMouseMove = (e: ReactMouseEvent) => {
     if (draggingId) {
       const pos = screenToMap(e.clientX, e.clientY);
-      if (pos) {
-        setDraggingPos({
-          x: Math.max(0, Math.min(1, pos.x)),
-          y: Math.max(0, Math.min(1, pos.y)),
-        });
-      }
+      if (pos) setDraggingPos({ x: Math.max(0, Math.min(1, pos.x)), y: Math.max(0, Math.min(1, pos.y)) });
       return;
     }
-
-    if (placingId) {
-      setCursorMapPos(screenToMap(e.clientX, e.clientY));
-      return;
-    }
-
+    if (placingId) { setCursorMapPos(screenToMap(e.clientX, e.clientY)); return; }
     const pin = findPinAt(e.clientX, e.clientY);
     setHoveredId(pin?.id ?? null);
   };
 
   const handleMouseUp = () => {
     if (draggingId && draggingPos) {
-      const orig = points.find((p) => p.id === draggingId);
-      if (orig && orig.x !== null && orig.y !== null) {
+      const pin = allPins.find((p) => p.id === draggingId);
+      if (pin) {
         const { scale } = transformStateRef.current;
-        const dx = (draggingPos.x - orig.x) * imgSize.w * scale;
-        const dy = (draggingPos.y - orig.y) * imgSize.h * scale;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > DRAG_THRESHOLD) {
+        const dx = (draggingPos.x - pin.x) * imgSize.w * scale;
+        const dy = (draggingPos.y - pin.y) * imgSize.h * scale;
+        if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
           onPlacePin(draggingId, draggingPos.x, draggingPos.y);
         }
       }
@@ -230,10 +196,7 @@ export default function MapCanvas({
   };
 
   const handleMouseLeave = () => {
-    if (draggingId) {
-      setDraggingId(null);
-      setDraggingPos(null);
-    }
+    if (draggingId) { setDraggingId(null); setDraggingPos(null); }
   };
 
   const handleClick = (e: ReactMouseEvent) => {
@@ -242,7 +205,6 @@ export default function MapCanvas({
       const dy = e.clientY - mouseDownPosRef.current.y;
       if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) return;
     }
-
     if (placingId) {
       const pos = screenToMap(e.clientX, e.clientY);
       if (pos && pos.x >= 0 && pos.x <= 1 && pos.y >= 0 && pos.y <= 1) {
@@ -250,42 +212,35 @@ export default function MapCanvas({
       }
       return;
     }
-
     const pin = findPinAt(e.clientX, e.clientY);
-    if (pin) {
-      selectedFromMapRef.current = true;
-    }
+    if (pin) selectedFromMapRef.current = true;
     onSelectPin(pin?.id ?? null);
   };
 
-  // Determine cursor style
   let cursor = "grab";
   if (draggingId) cursor = "grabbing";
   if (placingId) cursor = "crosshair";
   if (hoveredId && !placingId && !draggingId) cursor = "pointer";
 
-  // Pin sizing: consistent screen size, grows past 300% zoom
   const pinScaleBoost = transformState.scale > 3 ? transformState.scale / 3 : 1;
 
-  const placed = points.filter((p) => p.x !== null && p.y !== null);
+  // Helper to get screen position
+  const toScreen = (x: number, y: number) => ({
+    sx: x * imgSize.w * transformState.scale + transformState.positionX,
+    sy: y * imgSize.h * transformState.scale + transformState.positionY,
+  });
 
   return (
     <div
       ref={containerRef}
       className="fixed top-12 bottom-0 right-0 overflow-hidden"
-      style={{
-        left: sidebarOpen ? 300 : 0,
-        cursor,
-        transition: "left 0.2s ease",
-        background: "#1a1612",
-      }}
+      style={{ left: sidebarOpen ? 300 : 0, cursor, transition: "left 0.2s ease", background: "#1a1612" }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
     >
-      {/* Map image — inside TransformComponent for pan/zoom */}
       {ready && (
         <TransformWrapper
           ref={transformRef}
@@ -294,21 +249,11 @@ export default function MapCanvas({
           minScale={0.1}
           maxScale={10}
           smooth
-          panning={{
-            disabled: !!draggingId,
-          }}
-          velocityAnimation={{
-            sensitivity: 1,
-            animationTime: 400,
-          }}
-          onTransformed={(_ref, state) => {
-            transformStateRef.current = state;
-            setTransformState(state);
-          }}
+          panning={{ disabled: !!draggingId }}
+          velocityAnimation={{ sensitivity: 1, animationTime: 400 }}
+          onTransformed={(_ref, state) => { transformStateRef.current = state; setTransformState(state); }}
         >
-          <TransformComponent
-            wrapperStyle={{ width: "100%", height: "100%" }}
-          >
+          <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={mapImage}
@@ -322,72 +267,51 @@ export default function MapCanvas({
         </TransformWrapper>
       )}
 
-      {/* Pins — rendered as overlay using transform state for positioning */}
-      {placed.map((p) => {
+      {/* Ghost POI pins (dimmed, non-interactive) */}
+      {ghostPoints.filter((p) => p.x !== null && p.y !== null).map((p) => {
+        const { sx, sy } = toScreen(p.x!, p.y!);
+        return (
+          <div key={`ghost-${p.id}`} style={{ position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)", zIndex: 5, pointerEvents: "none" }}>
+            <div style={{
+              width: 12, height: 12, borderRadius: "50%",
+              background: getTypeColor(p.type),
+              border: "1px solid rgba(255,255,255,0.4)",
+              opacity: 0.3,
+            }} />
+          </div>
+        );
+      })}
+
+      {/* POI pins */}
+      {points.filter((p) => p.x !== null && p.y !== null).map((p) => {
         const isSelected = p.id === selectedId;
         const isHovered = p.id === hoveredId;
         const isDragging = p.id === draggingId;
         const color = getTypeColor(p.type);
-        const baseR = isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS;
-        const r = baseR * pinScaleBoost;
-
+        const r = (isSelected || isHovered ? PIN_RADIUS_HOVER : PIN_RADIUS) * pinScaleBoost;
         const pinX = isDragging && draggingPos ? draggingPos.x : p.x!;
         const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
-
-        // Screen position from transform state
-        const screenX =
-          pinX * imgSize.w * transformState.scale + transformState.positionX;
-        const screenY =
-          pinY * imgSize.h * transformState.scale + transformState.positionY;
+        const { sx, sy } = toScreen(pinX, pinY);
 
         return (
-          <div
-            key={p.id}
-            style={{
-              position: "absolute",
-              left: screenX,
-              top: screenY,
-              transform: "translate(-50%, -50%)",
-              zIndex: isDragging
-                ? 30
-                : isSelected
-                  ? 20
-                  : isHovered
-                    ? 15
-                    : 10,
-              pointerEvents: "none",
-            }}
-          >
-            <div
-              style={{
-                width: r * 2,
-                height: r * 2,
-                borderRadius: "50%",
-                background: color,
-                border: "2px solid rgba(255,255,255,0.9)",
-                boxShadow: isDragging
-                  ? "0 2px 8px rgba(0,0,0,0.6)"
-                  : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
-                transition: "width 0.1s, height 0.1s",
-                opacity: isDragging ? 0.8 : 1,
-              }}
-            />
+          <div key={p.id} style={{
+            position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)",
+            zIndex: isDragging ? 30 : isSelected ? 20 : isHovered ? 15 : 10,
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              width: r * 2, height: r * 2, borderRadius: "50%", background: color,
+              border: "2px solid rgba(255,255,255,0.9)",
+              boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
+              transition: "width 0.1s, height 0.1s",
+              opacity: isDragging ? 0.8 : 1,
+            }} />
             {(isHovered || isSelected) && !isDragging && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: LABEL_OFFSET,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  fontSize: 11,
-                  whiteSpace: "nowrap",
-                  background: "rgba(58, 50, 38, 0.9)",
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  color: "#F5F0E8",
-                  pointerEvents: "none",
-                }}
-              >
+              <div style={{
+                position: "absolute", top: LABEL_OFFSET, left: "50%", transform: "translateX(-50%)",
+                fontSize: 11, whiteSpace: "nowrap", background: "rgba(58, 50, 38, 0.9)",
+                padding: "2px 8px", borderRadius: 4, color: "#F5F0E8", pointerEvents: "none",
+              }}>
                 {p.name}
               </div>
             )}
@@ -395,67 +319,67 @@ export default function MapCanvas({
         );
       })}
 
-      {/* Placement preview */}
-      {placingId && cursorMapPos && (
-        <div
-          style={{
-            position: "absolute",
-            left:
-              cursorMapPos.x * imgSize.w * transformState.scale +
-              transformState.positionX,
-            top:
-              cursorMapPos.y * imgSize.h * transformState.scale +
-              transformState.positionY,
-            transform: "translate(-50%, -50%)",
-            zIndex: 30,
+      {/* Tag pins (diamond shape) */}
+      {tags.filter((t) => t.x !== null && t.y !== null).map((t) => {
+        const isSelected = t.id === selectedId;
+        const isHovered = t.id === hoveredId;
+        const isDragging = t.id === draggingId;
+        const color = getTagTypeColor(t.tagType);
+        const size = (isSelected || isHovered ? TAG_SIZE_HOVER : TAG_SIZE) * pinScaleBoost;
+        const pinX = isDragging && draggingPos ? draggingPos.x : t.x!;
+        const pinY = isDragging && draggingPos ? draggingPos.y : t.y!;
+        const { sx, sy } = toScreen(pinX, pinY);
+
+        return (
+          <div key={t.id} style={{
+            position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)",
+            zIndex: isDragging ? 30 : isSelected ? 20 : isHovered ? 15 : 10,
             pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              width: 16,
-              height: 16,
-              borderRadius: "50%",
-              background: "rgba(245, 168, 85, 0.6)",
-              border: "2px dashed #F5A855",
-            }}
-          />
-        </div>
-      )}
+          }}>
+            <div style={{
+              width: size, height: size, transform: "rotate(45deg)", borderRadius: 2,
+              background: color,
+              border: "2px solid rgba(255,255,255,0.9)",
+              boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
+              transition: "width 0.1s, height 0.1s",
+              opacity: isDragging ? 0.8 : t.done ? 0.4 : 1,
+            }} />
+            {(isHovered || isSelected) && !isDragging && (
+              <div style={{
+                position: "absolute", top: LABEL_OFFSET, left: "50%", transform: "translateX(-50%)",
+                fontSize: 11, whiteSpace: "nowrap", background: "rgba(58, 50, 38, 0.9)",
+                padding: "2px 8px", borderRadius: 4, color: "#F5F0E8", pointerEvents: "none",
+              }}>
+                {t.name}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Placement preview */}
+      {placingId && cursorMapPos && (() => {
+        const { sx, sy } = toScreen(cursorMapPos.x, cursorMapPos.y);
+        return (
+          <div style={{ position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)", zIndex: 30, pointerEvents: "none" }}>
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(245, 168, 85, 0.6)", border: "2px dashed #F5A855" }} />
+          </div>
+        );
+      })()}
 
       {/* Zoom indicator */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 12,
-          right: 12,
-          background: "rgba(58, 50, 38, 0.8)",
-          padding: "4px 10px",
-          borderRadius: 4,
-          fontSize: 11,
-          color: "rgba(245, 240, 232, 0.5)",
-        }}
-      >
+      <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(58, 50, 38, 0.8)", padding: "4px 10px", borderRadius: 4, fontSize: 11, color: "rgba(245, 240, 232, 0.5)" }}>
         {Math.round(transformState.scale * 100)}%
       </div>
 
       {/* Placement mode indicator */}
       {placingId && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 12,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(245, 168, 85, 0.9)",
-            color: "#3A3226",
-            padding: "8px 16px",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          Click on the map to place pin — press Esc to cancel
+        <div style={{
+          position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
+          background: "rgba(245, 168, 85, 0.9)", color: "#3A3226", padding: "8px 16px",
+          borderRadius: 6, fontSize: 13, fontWeight: 600,
+        }}>
+          Click on the map to place — press Esc to cancel
         </div>
       )}
     </div>

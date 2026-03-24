@@ -12,17 +12,16 @@ export interface NotablePoint {
   notionUrl: string;
 }
 
-export interface MapPin {
+export interface MapTag {
   id: string;
   name: string;
-  type: string | null;
-  status: string | null;
-  x: number;
-  y: number;
+  tagType: string | null;
+  done: boolean;
+  x: number | null;
+  y: number | null;
+  addedBy: string;
+  createdTime: string;
+  notionUrl: string;
 }
 
-export type PlacementRequest = {
-  pageId: string;
-  x: number;
-  y: number;
-};
+export type ViewMode = "pois" | "tags";

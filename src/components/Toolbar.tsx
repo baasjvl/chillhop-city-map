@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import type { ViewMode } from "@/lib/types";
 
 interface ToolbarProps {
   isAuthenticated: boolean;
   authorName: string;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
   onRefresh: () => void;
   onLogin: (name: string, password: string) => Promise<boolean>;
 }
@@ -12,6 +15,8 @@ interface ToolbarProps {
 export default function Toolbar({
   isAuthenticated,
   authorName,
+  viewMode,
+  onViewModeChange,
   onRefresh,
   onLogin,
 }: ToolbarProps) {
@@ -68,6 +73,30 @@ export default function Toolbar({
         >
           Refresh
         </button>
+
+        <div style={{ width: 1, height: 24, background: "var(--panel-border)" }} />
+
+        {/* View mode toggle */}
+        <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--panel-border)" }}>
+          {(["pois", "tags"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => onViewModeChange(mode)}
+              style={{
+                background: viewMode === mode ? "#F5A855" : "rgba(58, 50, 38, 0.2)",
+                color: viewMode === mode ? "#3A3226" : "var(--text)",
+                border: "none",
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: viewMode === mode ? 600 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {mode === "pois" ? "POIs" : "Tags"}
+            </button>
+          ))}
+        </div>
 
         <div style={{ flex: 1 }} />
 

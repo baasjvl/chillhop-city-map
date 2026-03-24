@@ -27,3 +27,13 @@ export function getTypeColor(type: string | null): string {
 export function getStatusColor(status: string | null): string {
   return (status && STATUS_COLORS[status]) || "#8B8178";
 }
+
+export const TAG_TYPE_COLORS: Record<string, string> = {
+  "Design Change": "#E8C05A",
+  "POI To Do": "#5AADE8",
+  "Design To Do": "#9B72CF",
+};
+
+export function getTagTypeColor(type: string | null): string {
+  return (type && TAG_TYPE_COLORS[type]) || "#8B8178";
+}
