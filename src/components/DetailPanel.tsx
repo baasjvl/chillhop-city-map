@@ -1,22 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { NotablePoint } from "@/lib/types";
 import { getTypeColor, getStatusColor } from "@/lib/colors";
+
+const ALL_STATUSES = [
+  "Placeholder",
+  "WIP",
+  "Ready for Review",
+  "Ready to Implement",
+  "Implemented",
+  "Postponed",
+  "Archived",
+];
 
 interface DetailPanelProps {
   point: NotablePoint | null;
   onClose: () => void;
   onStartPlace?: (id: string) => void;
+  onUpdateStatus?: (id: string, status: string) => void;
 }
 
-export default function DetailPanel({ point, onClose, onStartPlace }: DetailPanelProps) {
+export default function DetailPanel({ point, onClose, onStartPlace, onUpdateStatus }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close status menu on click outside
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showStatusMenu]);
 
   useEffect(() => {
     if (!point) {
       setPageContent(null);
+      setShowStatusMenu(false);
       return;
     }
 
@@ -100,8 +126,9 @@ export default function DetailPanel({ point, onClose, onStartPlace }: DetailPane
               {point.type}
             </div>
           )}
-          {point.status && (
-            <span
+          <div ref={statusMenuRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => onUpdateStatus && setShowStatusMenu(!showStatusMenu)}
               style={{
                 fontSize: 11,
                 padding: "2px 8px",
@@ -109,11 +136,62 @@ export default function DetailPanel({ point, onClose, onStartPlace }: DetailPane
                 fontWeight: 500,
                 background: `${statusColor}22`,
                 color: statusColor,
+                border: "none",
+                cursor: onUpdateStatus ? "pointer" : "default",
+                fontFamily: "inherit",
               }}
             >
-              {point.status}
-            </span>
-          )}
+              {point.status || "No status"}
+            </button>
+            {showStatusMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  marginTop: 4,
+                  background: "var(--panel)",
+                  border: "1px solid var(--panel-border)",
+                  borderRadius: 8,
+                  padding: 4,
+                  zIndex: 10,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                  minWidth: 160,
+                }}
+              >
+                {ALL_STATUSES.map((s) => {
+                  const c = getStatusColor(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        onUpdateStatus!(point.id, s);
+                        setShowStatusMenu(false);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        padding: "6px 10px",
+                        border: "none",
+                        background: s === point.status ? "rgba(245,168,85,0.15)" : "transparent",
+                        color: "var(--text)",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        borderRadius: 4,
+                        fontFamily: "inherit",
+                        textAlign: "left",
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: c, flexShrink: 0 }} />
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Engagement Layers */}

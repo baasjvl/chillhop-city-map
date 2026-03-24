@@ -132,6 +132,19 @@ export async function getPageContent(pageId: string): Promise<string> {
   return blocks.join("\n\n");
 }
 
+export async function updatePointStatus(
+  pageId: string,
+  status: string
+): Promise<void> {
+  await notion.pages.update({
+    page_id: pageId,
+    properties: {
+      Status: { select: { name: status } },
+    },
+  });
+  cache = null;
+}
+
 export async function createPoint(name: string): Promise<NotablePoint> {
   const page = await notion.pages.create({
     parent: { database_id: DB_NOTABLE_POINTS },

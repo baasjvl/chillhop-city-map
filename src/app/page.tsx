@@ -113,6 +113,29 @@ export default function Home() {
     }
   };
 
+  // Handle status change
+  const handleUpdateStatus = async (id: string, status: string) => {
+    const prev = points;
+    setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, status } : p)));
+
+    try {
+      const res = await fetch("/api/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: id, status }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to update status");
+        setPoints(prev);
+      }
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      alert("Failed to update status");
+      setPoints(prev);
+    }
+  };
+
   // Start placement mode
   const handleStartPlace = (id: string) => {
     if (!isAuthenticated) {
@@ -185,6 +208,7 @@ export default function Home() {
         point={selectedPoint}
         onClose={() => setSelectedId(null)}
         onStartPlace={isAuthenticated ? handleStartPlace : undefined}
+        onUpdateStatus={isAuthenticated ? handleUpdateStatus : undefined}
       />
     </>
   );
