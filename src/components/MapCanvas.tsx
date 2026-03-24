@@ -14,6 +14,7 @@ import {
 } from "react-zoom-pan-pinch";
 import type { NotablePoint, MapTag } from "@/lib/types";
 import { getTypeColor, getTagTypeColor } from "@/lib/colors";
+import { getPoiIcon, getTagIcon } from "@/lib/icons";
 
 interface Pinnable {
   id: string;
@@ -305,7 +306,10 @@ export default function MapCanvas({
               boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
               transition: "width 0.1s, height 0.1s",
               opacity: isDragging ? 0.8 : 1,
-            }} />
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {getPoiIcon(p.type, { size: Math.max(10, r), color: "rgba(255,255,255,0.9)" })}
+            </div>
             {(isHovered || isSelected) && !isDragging && (
               <div style={{
                 position: "absolute", top: LABEL_OFFSET, left: "50%", transform: "translateX(-50%)",
@@ -343,7 +347,12 @@ export default function MapCanvas({
               boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
               transition: "width 0.1s, height 0.1s",
               opacity: isDragging ? 0.8 : t.done ? 0.4 : 1,
-            }} />
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ transform: "rotate(-45deg)", lineHeight: 0 }}>
+                {getTagIcon(t.tagType, { size: Math.max(8, size * 0.6), color: "rgba(255,255,255,0.9)" })}
+              </span>
+            </div>
             {(isHovered || isSelected) && !isDragging && (
               <div style={{
                 position: "absolute", top: LABEL_OFFSET, left: "50%", transform: "translateX(-50%)",
