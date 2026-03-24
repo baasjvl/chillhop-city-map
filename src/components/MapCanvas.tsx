@@ -12,7 +12,7 @@ import {
   TransformComponent,
   type ReactZoomPanPinchContentRef,
 } from "react-zoom-pan-pinch";
-import type { NotablePoint, MapTag } from "@/lib/types";
+import type { NotablePoint, MapTag, RoutineStop } from "@/lib/types";
 import { getTypeColor, getTagTypeColor } from "@/lib/colors";
 import { getPoiIcon, getTagIcon } from "@/lib/icons";
 
@@ -27,10 +27,13 @@ interface MapCanvasProps {
   points: NotablePoint[];
   tags?: MapTag[];
   ghostPoints?: NotablePoint[];
+  routineStops?: RoutineStop[];
   selectedId: string | null;
   placingId: string | null;
   onSelectPin: (id: string | null) => void;
   onPlacePin: (id: string, x: number, y: number) => void;
+  onRoutineMapClick?: (x: number, y: number, nearestPoi: NotablePoint | null) => void;
+  addingRoutineStop?: boolean;
   sidebarOpen: boolean;
 }
 
@@ -45,10 +48,13 @@ export default function MapCanvas({
   points,
   tags = [],
   ghostPoints = [],
+  routineStops = [],
   selectedId,
   placingId,
   onSelectPin,
   onPlacePin,
+  onRoutineMapClick,
+  addingRoutineStop = false,
   sidebarOpen,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -243,6 +249,28 @@ export default function MapCanvas({
       const dy = e.clientY - mouseDownPosRef.current.y;
       if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) return;
     }
+    if (addingRoutineStop && onRoutineMapClick) {
+      const pos = screenToMap(e.clientX, e.clientY);
+      if (pos && pos.x >= 0 && pos.x <= 1 && pos.y >= 0 && pos.y <= 1) {
+        // Find nearest POI within snap distance
+        const SNAP_DIST = 0.02; // ~2% of map
+        let nearest: NotablePoint | null = null;
+        let nearestDist = Infinity;
+        for (const p of points) {
+          if (p.x === null || p.y === null) continue;
+          const d = Math.sqrt((pos.x - p.x) ** 2 + (pos.y - p.y) ** 2);
+          if (d < SNAP_DIST && d < nearestDist) { nearest = p; nearestDist = d; }
+        }
+        // Also check ghostPoints
+        for (const p of ghostPoints) {
+          if (p.x === null || p.y === null) continue;
+          const d = Math.sqrt((pos.x - p.x) ** 2 + (pos.y - p.y) ** 2);
+          if (d < SNAP_DIST && d < nearestDist) { nearest = p; nearestDist = d; }
+        }
+        onRoutineMapClick(pos.x, pos.y, nearest);
+      }
+      return;
+    }
     if (placingId) {
       const pos = screenToMap(e.clientX, e.clientY);
       if (pos && pos.x >= 0 && pos.x <= 1 && pos.y >= 0 && pos.y <= 1) {
@@ -257,8 +285,8 @@ export default function MapCanvas({
 
   let cursor = "grab";
   if (draggingId) cursor = "grabbing";
-  if (placingId) cursor = "crosshair";
-  if (hoveredId && !placingId && !draggingId) cursor = "pointer";
+  if (placingId || addingRoutineStop) cursor = "crosshair";
+  if (hoveredId && !placingId && !draggingId && !addingRoutineStop) cursor = "pointer";
 
   // Gentle scale-up when zooming in (grows ~20% per doubling of zoom past 100%)
   const pinScaleBoost = 1 + Math.max(0, Math.log2(transformState.scale)) * 0.2;
@@ -452,6 +480,59 @@ export default function MapCanvas({
           </div>
         );
       })}
+
+      {/* Routine path: dotted lines + numbered stops */}
+      {routineStops.length > 0 && (() => {
+        const resolved = routineStops.filter((s) => s.x !== undefined && s.y !== undefined);
+        if (resolved.length === 0) return null;
+        return (
+          <>
+            {/* SVG overlay for dotted path lines */}
+            <svg style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 6 }}>
+              {resolved.map((stop, i) => {
+                if (i === 0) return null;
+                const prev = resolved[i - 1];
+                const { sx: x1, sy: y1 } = toScreen(prev.x!, prev.y!);
+                const { sx: x2, sy: y2 } = toScreen(stop.x!, stop.y!);
+                return (
+                  <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke="#F5A855" strokeWidth={2} strokeDasharray="6 4" opacity={0.7} />
+                );
+              })}
+            </svg>
+            {/* Stop markers */}
+            {resolved.map((stop, i) => {
+              const { sx, sy } = toScreen(stop.x!, stop.y!);
+              const isInside = stop.tags.includes("inside");
+              return (
+                <div key={`stop-${i}`} style={{
+                  position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)",
+                  zIndex: 7, pointerEvents: "none",
+                }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: "50%",
+                    background: isInside ? "rgba(245, 168, 85, 0.4)" : "#F5A855",
+                    border: isInside ? "2px dashed rgba(255,255,255,0.6)" : "2px solid rgba(255,255,255,0.9)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 700, color: isInside ? "rgba(255,255,255,0.7)" : "#3A3226",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                  }}>
+                    {i + 1}
+                  </div>
+                  <div style={{
+                    position: "absolute", top: 24, left: "50%", transform: "translateX(-50%)",
+                    fontSize: 10, whiteSpace: "nowrap", background: "rgba(58, 50, 38, 0.9)",
+                    padding: "1px 6px", borderRadius: 3, color: "#F5F0E8",
+                  }}>
+                    {stop.time} — {stop.location}
+                    {stop.tags.length > 0 && ` [${stop.tags.join(", ")}]`}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        );
+      })()}
 
       {/* Placement preview */}
       {placingId && cursorMapPos && (() => {

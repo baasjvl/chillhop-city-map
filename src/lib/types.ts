@@ -24,4 +24,26 @@ export interface MapTag {
   notionUrl: string;
 }
 
-export type ViewMode = "pois" | "tags";
+export interface Character {
+  id: string;
+  name: string;
+  status: string | null;
+  routinesRaw: string;
+  notionUrl: string;
+}
+
+export interface RoutineStop {
+  time: string; // "HH:MM"
+  location: string; // POI name or "x,y"
+  tags: string[]; // ["sleep", "inside", "work", etc.]
+  /** Resolved coordinates (filled in at render time) */
+  x?: number;
+  y?: number;
+}
+
+export interface RoutineSchedule {
+  label: string; // "default", "rain", "monday", etc.
+  stops: RoutineStop[];
+}
+
+export type ViewMode = "pois" | "tags" | "routines";
