@@ -92,6 +92,27 @@ export default function Home() {
     }
   };
 
+  // Handle creating a new point
+  const handleCreatePoint = async (name: string) => {
+    try {
+      const res = await fetch("/api/create-point", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        const point = await res.json();
+        setPoints((pts) => [...pts, point]);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to create entry");
+      }
+    } catch (err) {
+      console.error("Failed to create point:", err);
+      alert("Failed to create entry");
+    }
+  };
+
   // Start placement mode
   const handleStartPlace = (id: string) => {
     if (!isAuthenticated) {
@@ -146,9 +167,11 @@ export default function Home() {
         selectedId={selectedId}
         placingId={placingId}
         isOpen={sidebarOpen}
+        isAuthenticated={isAuthenticated}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         onSelectPin={setSelectedId}
         onStartPlace={handleStartPlace}
+        onCreatePoint={handleCreatePoint}
       />
       <MapCanvas
         points={points}

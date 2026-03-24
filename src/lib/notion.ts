@@ -132,6 +132,33 @@ export async function getPageContent(pageId: string): Promise<string> {
   return blocks.join("\n\n");
 }
 
+export async function createPoint(name: string): Promise<NotablePoint> {
+  const page = await notion.pages.create({
+    parent: { database_id: DB_NOTABLE_POINTS },
+    properties: {
+      Name: { title: [{ text: { content: name } }] },
+      Status: { select: { name: "Placeholder" } },
+    },
+  });
+
+  cache = null;
+
+  const props = (page as { properties: Record<string, unknown> }).properties;
+  return {
+    id: page.id,
+    name,
+    description: "",
+    type: getSelect(props["Type"]) || getSelect(props["Category"]),
+    status: "Placeholder",
+    engagementLayers: [],
+    tags: [],
+    x: null,
+    y: null,
+    zoomMin: null,
+    notionUrl: (page as { url: string }).url,
+  };
+}
+
 export async function placePoint(
   pageId: string,
   x: number,

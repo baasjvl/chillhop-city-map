@@ -4,14 +4,32 @@ import { useState } from "react";
 import type { NotablePoint } from "@/lib/types";
 import { getTypeColor, TYPE_COLORS } from "@/lib/colors";
 
+const ALL_STATUSES = [
+  "Placeholder",
+  "WIP",
+  "Ready for Review",
+  "Ready to Implement",
+  "Implemented",
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  Placeholder: "#9E8E7E",
+  WIP: "#E8C05A",
+  "Ready for Review": "#5AADE8",
+  "Ready to Implement": "#E89A5A",
+  Implemented: "#6BBF6B",
+};
+
 interface SidebarProps {
   points: NotablePoint[];
   selectedId: string | null;
   placingId: string | null;
   isOpen: boolean;
+  isAuthenticated: boolean;
   onToggle: () => void;
   onSelectPin: (id: string) => void;
   onStartPlace: (id: string) => void;
+  onCreatePoint: (name: string) => void;
 }
 
 export default function Sidebar({
@@ -19,15 +37,21 @@ export default function Sidebar({
   selectedId,
   placingId,
   isOpen,
+  isAuthenticated,
   onToggle,
   onSelectPin,
   onStartPlace,
+  onCreatePoint,
 }: SidebarProps) {
   const [activeTypes, setActiveTypes] = useState<Set<string>>(
     new Set(Object.keys(TYPE_COLORS))
   );
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [activeStatuses, setActiveStatuses] = useState<Set<string>>(
+    new Set(ALL_STATUSES)
+  );
   const [searchText, setSearchText] = useState("");
+  const [newPointName, setNewPointName] = useState("");
+  const [showNewPoint, setShowNewPoint] = useState(false);
 
   const toggleType = (type: string) => {
     setActiveTypes((prev) => {
@@ -38,19 +62,22 @@ export default function Sidebar({
     });
   };
 
+  const toggleStatus = (status: string) => {
+    setActiveStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  };
+
   const placed = points.filter((p) => p.x !== null && p.y !== null);
   const unplaced = points.filter((p) => p.x === null || p.y === null);
 
   const filterPoint = (p: NotablePoint) => {
     if (p.type && !activeTypes.has(p.type)) return false;
-    if (
-      statusFilter !== "all" &&
-      statusFilter === "unimplemented" &&
-      p.status === "Implemented"
-    )
-      return false;
-    if (statusFilter !== "all" && statusFilter !== "unimplemented" && p.status !== statusFilter)
-      return false;
+    if (p.status && !activeStatuses.has(p.status)) return false;
+    if (!p.status && !activeStatuses.has("Placeholder")) return false;
     if (searchText) {
       const q = searchText.toLowerCase();
       const inName = p.name.toLowerCase().includes(q);
@@ -63,6 +90,13 @@ export default function Sidebar({
 
   const filteredPlaced = placed.filter(filterPoint);
   const filteredUnplaced = unplaced.filter(filterPoint);
+
+  const handleCreatePoint = () => {
+    if (!newPointName.trim()) return;
+    onCreatePoint(newPointName.trim());
+    setNewPointName("");
+    setShowNewPoint(false);
+  };
 
   return (
     <>
@@ -150,8 +184,50 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Search & status filter */}
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Status filters */}
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
+          <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 8 }}>
+            Status
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {ALL_STATUSES.map((status) => {
+              const active = activeStatuses.has(status);
+              const color = STATUS_COLORS[status] ?? "var(--text-muted)";
+              return (
+                <button
+                  key={status}
+                  onClick={() => toggleStatus(status)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
+                    border: active ? `1px solid ${color}` : "1px solid transparent",
+                    color: active ? color : "var(--text-muted)",
+                    opacity: active ? 1 : 0.4,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: color,
+                    }}
+                  />
+                  {status}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Search */}
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
           <input
             type="text"
             placeholder="Search pins..."
@@ -167,30 +243,87 @@ export default function Sidebar({
               fontSize: 12,
               outline: "none",
               fontFamily: "inherit",
+              boxSizing: "border-box",
             }}
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              width: "100%",
-              background: "rgba(58, 50, 38, 0.2)",
-              border: "1px solid var(--panel-border)",
-              color: "var(--text)",
-              padding: "6px 10px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontFamily: "inherit",
-            }}
-          >
-            <option value="all">All statuses</option>
-            <option value="unimplemented">Not implemented</option>
-            <option value="WIP">WIP</option>
-            <option value="Ready for Review">Ready for Review</option>
-            <option value="Ready to Implement">Ready to Implement</option>
-            <option value="Implemented">Implemented</option>
-          </select>
         </div>
+
+        {/* Add new entry */}
+        {isAuthenticated && (
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
+            {showNewPoint ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="text"
+                  placeholder="Entry name..."
+                  value={newPointName}
+                  onChange={(e) => setNewPointName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreatePoint()}
+                  autoFocus
+                  style={{
+                    flex: 1,
+                    background: "rgba(58, 50, 38, 0.2)",
+                    border: "1px solid var(--panel-border)",
+                    color: "var(--text)",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    outline: "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+                <button
+                  onClick={handleCreatePoint}
+                  style={{
+                    background: "#F5A855",
+                    border: "none",
+                    color: "#3A3226",
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => { setShowNewPoint(false); setNewPointName(""); }}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--panel-border)",
+                    color: "var(--text-muted)",
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  x
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewPoint(true)}
+                style={{
+                  width: "100%",
+                  background: "rgba(58, 50, 38, 0.2)",
+                  border: "1px dashed var(--panel-border)",
+                  color: "var(--text-muted)",
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                + Add new entry
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Unplaced items */}
         {filteredUnplaced.length > 0 && (
@@ -275,9 +408,9 @@ export default function Sidebar({
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {p.name}
                 </span>
-                {p.status === "Implemented" && (
-                  <span style={{ fontSize: 10, color: "#6BBF6B", flexShrink: 0 }}>
-                    Done
+                {p.status && (
+                  <span style={{ fontSize: 10, color: STATUS_COLORS[p.status] ?? "var(--text-muted)", flexShrink: 0 }}>
+                    {p.status}
                   </span>
                 )}
               </div>
