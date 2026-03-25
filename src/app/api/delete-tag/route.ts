@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { updateMapTag } from "@/lib/notion-tags";
+import { deleteMapTag } from "@/lib/notion-tags";
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
@@ -10,18 +10,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { pageId, done, tagType, name } = await request.json();
+    const { pageId } = await request.json();
 
     if (!pageId) {
       return NextResponse.json({ error: "Missing pageId" }, { status: 400 });
     }
 
-    await updateMapTag(pageId, { done, tagType, name });
+    await deleteMapTag(pageId);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Failed to update tag:", error);
+    console.error("Failed to delete tag:", error);
     return NextResponse.json(
-      { error: "Failed to update tag" },
+      { error: "Failed to delete tag" },
       { status: 500 }
     );
   }

@@ -437,13 +437,17 @@ export default function MapCanvas({
         );
       })}
 
-      {/* Tag pins (diamond shape) */}
+      {/* Tag pins (diamond shape, or rounded square for location views) */}
       {tags.filter((t) => t.x !== null && t.y !== null).map((t) => {
         const isSelected = t.id === selectedId;
         const isHovered = t.id === hoveredId;
         const isDragging = t.id === draggingId;
         const color = getTagTypeColor(t.tagType);
-        const size = (isSelected || isHovered ? TAG_SIZE_HOVER : TAG_SIZE) * pinScaleBoost;
+        const isLV = t.isLocationView;
+        const baseSize = isLV
+          ? (isSelected || isHovered ? TAG_SIZE_HOVER + 4 : TAG_SIZE + 4)
+          : (isSelected || isHovered ? TAG_SIZE_HOVER : TAG_SIZE);
+        const size = baseSize * pinScaleBoost;
         const pinX = isDragging && draggingPos ? draggingPos.x : t.x!;
         const pinY = isDragging && draggingPos ? draggingPos.y : t.y!;
         const { sx, sy } = toScreen(pinX, pinY);
@@ -455,15 +459,19 @@ export default function MapCanvas({
             pointerEvents: "none",
           }}>
             <div style={{
-              width: size, height: size, transform: "rotate(45deg)", borderRadius: 2,
+              width: size, height: size,
+              transform: isLV ? "none" : "rotate(45deg)",
+              borderRadius: isLV ? 5 : 2,
               background: color,
-              border: "2px solid rgba(255,255,255,0.9)",
-              boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
+              border: isLV ? "2.5px solid rgba(255,255,255,1)" : "2px solid rgba(255,255,255,0.9)",
+              boxShadow: isDragging ? "0 2px 8px rgba(0,0,0,0.6)" : isLV
+                ? "0 1px 6px rgba(0,0,0,0.5), 0 0 8px rgba(255,255,255,0.35)"
+                : "0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,255,255,0.3)",
               transition: "width 0.1s, height 0.1s",
               opacity: isDragging ? 0.8 : t.done ? 0.4 : 1,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <span style={{ transform: "rotate(-45deg)", lineHeight: 0 }}>
+              <span style={{ transform: isLV ? "none" : "rotate(-45deg)", lineHeight: 0 }}>
                 {getTagIcon(t.tagType, { size: Math.max(8, size * 0.6), color: "rgba(255,255,255,0.9)" })}
               </span>
             </div>

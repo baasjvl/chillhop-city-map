@@ -13,7 +13,8 @@ interface DetailPanelProps {
   onClose: () => void;
   onStartPlace?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
-  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string }) => void;
+  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string }) => void;
+  onDeleteTag?: (id: string) => void;
 }
 
 export default function DetailPanel({
@@ -26,11 +27,14 @@ export default function DetailPanel({
   onStartPlace,
   onUpdateStatus,
   onUpdateTag,
+  onDeleteTag,
 }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showTagTypeMenu, setShowTagTypeMenu] = useState(false);
+  const [editingTagName, setEditingTagName] = useState(false);
+  const [tagNameDraft, setTagNameDraft] = useState("");
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
 
@@ -88,7 +92,41 @@ export default function DetailPanel({
         ) : (
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: getTypeColor(point!.type), flexShrink: 0 }} />
         )}
-        <h2 style={{ flex: 1, fontSize: 16, fontWeight: 600 }}>{item.name}</h2>
+        {isTag && editingTagName ? (
+          <input
+            autoFocus
+            value={tagNameDraft}
+            onChange={(e) => setTagNameDraft(e.target.value)}
+            onBlur={() => {
+              if (tagNameDraft.trim() && tagNameDraft !== tag!.name) {
+                onUpdateTag?.(tag!.id, { name: tagNameDraft.trim() });
+              }
+              setEditingTagName(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") setEditingTagName(false);
+            }}
+            style={{
+              flex: 1, fontSize: 16, fontWeight: 600, background: "rgba(58, 50, 38, 0.2)",
+              border: "1px solid var(--panel-border)", color: "var(--text)",
+              padding: "2px 6px", borderRadius: 4, outline: "none", fontFamily: "inherit",
+            }}
+          />
+        ) : (
+          <h2
+            style={{ flex: 1, fontSize: 16, fontWeight: 600, cursor: isTag && onUpdateTag ? "pointer" : "default" }}
+            onClick={() => {
+              if (isTag && onUpdateTag) {
+                setTagNameDraft(tag!.name);
+                setEditingTagName(true);
+              }
+            }}
+            title={isTag && onUpdateTag ? "Click to edit name" : undefined}
+          >
+            {item.name}
+          </h2>
+        )}
         <button onClick={onClose} style={{
           background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
           color: "var(--text)", padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "inherit",
@@ -236,6 +274,14 @@ export default function DetailPanel({
             {point.description && (
               <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text-muted)" }}>{point.description}</div>
             )}
+            {point.defaultResponse && (
+              <>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginTop: 4 }}>
+                  Default Response
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text)", whiteSpace: "pre-wrap" }}>{point.defaultResponse}</div>
+              </>
+            )}
             <div style={{ height: 1, background: "var(--panel-border)" }} />
             {loadingContent && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading content...</div>}
             {!loadingContent && pageContent && <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{pageContent}</div>}
@@ -275,6 +321,18 @@ export default function DetailPanel({
             Open in Notion
           </a>
         </div>
+        {isTag && onDeleteTag && (
+          <button
+            onClick={() => { if (confirm(`Delete tag "${tag!.name}"? This will archive it in Notion.`)) onDeleteTag(tag!.id); }}
+            style={{
+              width: "100%", background: "transparent", border: "1px solid rgba(220, 80, 80, 0.3)",
+              color: "rgba(220, 80, 80, 0.7)", padding: "6px 16px", borderRadius: 6, fontSize: 12,
+              cursor: "pointer", fontFamily: "inherit", marginTop: 4,
+            }}
+          >
+            Delete tag
+          </button>
+        )}
       </div>
     </div>
   );

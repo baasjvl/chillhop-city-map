@@ -248,7 +248,7 @@ export default function TagsSidebar({
                     onChange={(e) => setNewTagType(e.target.value)}
                     style={{
                       flex: 1,
-                      background: "rgba(58, 50, 38, 0.2)",
+                      background: "#3A3226",
                       border: "1px solid var(--panel-border)",
                       color: "var(--text)",
                       padding: "6px 10px",
@@ -258,7 +258,7 @@ export default function TagsSidebar({
                     }}
                   >
                     {allTypes.map((t) => (
-                      <option key={t} value={t}>{t}</option>
+                      <option key={t} value={t} style={{ background: "#3A3226", color: "#F5F0E8" }}>{t}</option>
                     ))}
                   </select>
                   <button
@@ -339,7 +339,9 @@ export default function TagsSidebar({
                   onClick={() => onStartPlace(t.id)}
                 >
                   <span style={{
-                    width: 8, height: 8, transform: "rotate(45deg)",
+                    width: 8, height: 8,
+                    transform: t.isLocationView ? "none" : "rotate(45deg)",
+                    borderRadius: t.isLocationView ? 2 : 0,
                     background: getTagTypeColor(t.tagType), flexShrink: 0,
                   }} />
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -380,7 +382,9 @@ export default function TagsSidebar({
                 }}
               >
                 <span style={{
-                  width: 8, height: 8, transform: "rotate(45deg)",
+                  width: 8, height: 8,
+                  transform: t.isLocationView ? "none" : "rotate(45deg)",
+                  borderRadius: t.isLocationView ? 2 : 0,
                   background: getTagTypeColor(t.tagType), flexShrink: 0,
                 }} />
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

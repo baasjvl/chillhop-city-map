@@ -62,6 +62,7 @@ export async function getMapTags(bustCache = false): Promise<MapTag[]> {
         name: getTitle(props["Name"]),
         tagType: getSelect(props["Select"]),
         done: getCheckbox(props["Done?"]),
+        isLocationView: getCheckbox(props["Is Location View"]),
         x: getNumber(props["X (Map)"]),
         y: getNumber(props["Y (Map)"]),
         addedBy: getRichText(props["Added by"]),
@@ -109,6 +110,7 @@ export async function createMapTag(
     name,
     tagType,
     done: false,
+    isLocationView: false,
     x: null,
     y: null,
     addedBy,
@@ -119,7 +121,7 @@ export async function createMapTag(
 
 export async function updateMapTag(
   pageId: string,
-  updates: { done?: boolean; tagType?: string }
+  updates: { done?: boolean; tagType?: string; name?: string }
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {};
@@ -130,8 +132,17 @@ export async function updateMapTag(
   if (updates.tagType !== undefined) {
     properties["Select"] = { select: { name: updates.tagType } };
   }
+  if (updates.name !== undefined) {
+    properties["Name"] = { title: [{ text: { content: updates.name } }] };
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await notion.pages.update({ page_id: pageId, properties } as any);
+  cache = null;
+}
+
+export async function deleteMapTag(pageId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await notion.pages.update({ page_id: pageId, archived: true } as any);
   cache = null;
 }

@@ -2,6 +2,7 @@ export interface NotablePoint {
   id: string;
   name: string;
   description: string;
+  defaultResponse: string;
   type: string | null;
   status: string | null;
   engagementLayers: string[];
@@ -17,6 +18,7 @@ export interface MapTag {
   name: string;
   tagType: string | null;
   done: boolean;
+  isLocationView: boolean;
   x: number | null;
   y: number | null;
   addedBy: string;
