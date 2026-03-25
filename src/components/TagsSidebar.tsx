@@ -48,7 +48,7 @@ export default function TagsSidebar({
   const [searchText, setSearchText] = useState("");
   const [showNewTag, setShowNewTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagType, setNewTagType] = useState(allTypes[0] || "");
+  const [newTagType, setNewTagType] = useState("");
 
   const effectiveTypes = activeTypes ?? new Set(allTypes);
 
@@ -78,10 +78,13 @@ export default function TagsSidebar({
   const filteredPlaced = placed.filter(filterTag);
   const filteredUnplaced = unplaced.filter(filterTag);
 
+  const effectiveNewTagType = newTagType || allTypes[0] || "";
+
   const handleCreate = () => {
-    if (!newTagName.trim() || !newTagType) return;
-    onCreateTag(newTagName.trim(), newTagType);
+    if (!newTagName.trim() || !effectiveNewTagType) return;
+    onCreateTag(newTagName.trim(), effectiveNewTagType);
     setNewTagName("");
+    setNewTagType("");
     setShowNewTag(false);
   };
 
@@ -244,7 +247,7 @@ export default function TagsSidebar({
                 />
                 <div style={{ display: "flex", gap: 6 }}>
                   <select
-                    value={newTagType}
+                    value={effectiveNewTagType}
                     onChange={(e) => setNewTagType(e.target.value)}
                     style={{
                       flex: 1,
