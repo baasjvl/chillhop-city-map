@@ -334,9 +334,9 @@ export default function TagsSidebar({
                     padding: "8px 16px",
                     cursor: "pointer",
                     fontSize: 13,
-                    background: placingId === t.id ? "rgba(245, 168, 85, 0.15)" : "transparent",
+                    background: selectedId === t.id ? "rgba(245, 168, 85, 0.15)" : placingId === t.id ? "rgba(245, 168, 85, 0.1)" : "transparent",
                   }}
-                  onClick={() => onStartPlace(t.id)}
+                  onClick={() => onSelectTag(t.id)}
                 >
                   <span style={{
                     width: 8, height: 8,
@@ -347,7 +347,13 @@ export default function TagsSidebar({
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {t.name}
                   </span>
-                  <span style={{ fontSize: 10, color: "#F5A855", flexShrink: 0 }}>place</span>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onStartPlace(t.id); }}
+                    style={{ fontSize: 10, color: "#F5A855", flexShrink: 0, cursor: "pointer" }}
+                    title="Click to place on map"
+                  >
+                    place
+                  </span>
                 </div>
               ))}
             </div>

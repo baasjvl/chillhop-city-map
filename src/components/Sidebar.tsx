@@ -393,10 +393,9 @@ export default function Sidebar({
                     padding: "8px 16px",
                     cursor: "pointer",
                     fontSize: 13,
-                    background: placingId === p.id ? "rgba(245, 168, 85, 0.15)" : "transparent",
+                    background: selectedId === p.id ? "rgba(245, 168, 85, 0.15)" : placingId === p.id ? "rgba(245, 168, 85, 0.1)" : "transparent",
                   }}
-                  onClick={() => onStartPlace(p.id)}
-                  title="Click to place on map"
+                  onClick={() => onSelectPin(p.id)}
                 >
                   <span
                     style={{
@@ -410,7 +409,11 @@ export default function Sidebar({
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {p.name}
                   </span>
-                  <span style={{ fontSize: 10, color: "#F5A855", flexShrink: 0 }}>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onStartPlace(p.id); }}
+                    style={{ fontSize: 10, color: "#F5A855", flexShrink: 0, cursor: "pointer" }}
+                    title="Click to place on map"
+                  >
                     place
                   </span>
                 </div>
