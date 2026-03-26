@@ -204,7 +204,7 @@ export default function TagsSidebar({
         <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
           <input
             type="text"
-            placeholder="Search tags..."
+            placeholder="Search tasks..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{
@@ -229,7 +229,7 @@ export default function TagsSidebar({
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <input
                   type="text"
-                  placeholder="Tag description..."
+                  placeholder="Task description..."
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -312,7 +312,7 @@ export default function TagsSidebar({
                   fontFamily: "inherit",
                 }}
               >
-                + Add new tag
+                + Add new task
               </button>
             )}
           </div>

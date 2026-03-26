@@ -3,7 +3,7 @@ import type { MapTag } from "./types";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
-const DB_MAP_TAGS = process.env.NOTION_DB_MAP_TAGS!;
+const DB_MAP_TAGS = process.env.NOTION_DB_MAP_TAGS!.trim();
 
 let cache: { data: MapTag[]; timestamp: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
