@@ -113,6 +113,15 @@ export default function Home() {
     } catch { alert("Failed to create entry"); }
   };
 
+  const handleUpdatePoint = async (id: string, updates: { description?: string; defaultResponse?: string }) => {
+    const prev = points;
+    setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    try {
+      const res = await fetch("/api/update-point", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageId: id, ...updates }) });
+      if (!res.ok) setPoints(prev);
+    } catch { setPoints(prev); }
+  };
+
   const handleUpdateStatus = async (id: string, status: string) => {
     const prev = points;
     setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, status } : p)));
@@ -376,6 +385,7 @@ export default function Home() {
           onClose={() => selectPoi(null)}
           onStartPlace={isAuthenticated ? handleStartPlacePoi : undefined}
           onUpdateStatus={isAuthenticated ? handleUpdateStatus : undefined}
+          onUpdatePoint={isAuthenticated ? handleUpdatePoint : undefined}
         />
       )}
       {selectedTagItem && (

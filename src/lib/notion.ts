@@ -271,3 +271,22 @@ export async function placePoint(
   // Bust cache after placement
   cache = null;
 }
+
+export async function updatePointFields(
+  pageId: string,
+  updates: { description?: string; defaultResponse?: string }
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const properties: Record<string, any> = {};
+
+  if (updates.description !== undefined) {
+    properties["Description"] = { rich_text: [{ text: { content: updates.description } }] };
+  }
+  if (updates.defaultResponse !== undefined) {
+    properties["Default Response"] = { rich_text: [{ text: { content: updates.defaultResponse } }] };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await notion.pages.update({ page_id: pageId, properties } as any);
+  cache = null;
+}

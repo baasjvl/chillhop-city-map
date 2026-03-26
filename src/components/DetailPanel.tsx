@@ -15,6 +15,7 @@ interface DetailPanelProps {
   onUpdateStatus?: (id: string, status: string) => void;
   onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string }) => void;
   onDeleteTag?: (id: string) => void;
+  onUpdatePoint?: (id: string, updates: { description?: string; defaultResponse?: string }) => void;
 }
 
 export default function DetailPanel({
@@ -28,6 +29,7 @@ export default function DetailPanel({
   onUpdateStatus,
   onUpdateTag,
   onDeleteTag,
+  onUpdatePoint,
 }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
@@ -35,6 +37,8 @@ export default function DetailPanel({
   const [showTagTypeMenu, setShowTagTypeMenu] = useState(false);
   const [editingTagName, setEditingTagName] = useState(false);
   const [tagNameDraft, setTagNameDraft] = useState("");
+  const [editingField, setEditingField] = useState<"description" | "defaultResponse" | null>(null);
+  const [fieldDraft, setFieldDraft] = useState("");
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +60,7 @@ export default function DetailPanel({
   // Load page content for POIs and characters
   const contentId = point?.id || character?.id;
   useEffect(() => {
-    if (!contentId) { setPageContent(null); setShowStatusMenu(false); return; }
+    if (!contentId) { setPageContent(null); setShowStatusMenu(false); setEditingField(null); return; }
     setLoadingContent(true);
     setPageContent(null);
     fetch(`/api/page-content/${contentId}`)
@@ -271,17 +275,99 @@ export default function DetailPanel({
                 ))}
               </div>
             )}
-            {point.description && (
-              <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text-muted)" }}>{point.description}</div>
-            )}
-            {point.defaultResponse && (
-              <>
-                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginTop: 4 }}>
-                  Default Response
+            {/* Description (editable) */}
+            <div>
+              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 4 }}>
+                Description
+              </div>
+              {editingField === "description" ? (
+                <textarea
+                  autoFocus
+                  value={fieldDraft}
+                  onChange={(e) => setFieldDraft(e.target.value)}
+                  onBlur={() => {
+                    if (fieldDraft !== point.description) {
+                      onUpdatePoint?.(point.id, { description: fieldDraft });
+                    }
+                    setEditingField(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEditingField(null);
+                  }}
+                  style={{
+                    width: "100%", minHeight: 60, fontSize: 13, lineHeight: 1.5,
+                    background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
+                    color: "var(--text)", padding: "6px 8px", borderRadius: 6, outline: "none",
+                    fontFamily: "inherit", resize: "vertical", boxSizing: "border-box",
+                  }}
+                />
+              ) : (
+                <div
+                  onClick={() => {
+                    if (onUpdatePoint) {
+                      setFieldDraft(point.description);
+                      setEditingField("description");
+                    }
+                  }}
+                  style={{
+                    fontSize: 13, lineHeight: 1.5, color: point.description ? "var(--text-muted)" : "var(--text-muted)",
+                    whiteSpace: "pre-wrap", cursor: onUpdatePoint ? "pointer" : "default",
+                    fontStyle: point.description ? "normal" : "italic",
+                    padding: "2px 0", borderRadius: 4,
+                  }}
+                  title={onUpdatePoint ? "Click to edit" : undefined}
+                >
+                  {point.description || (onUpdatePoint ? "(click to add description)" : "No description")}
                 </div>
-                <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text)", whiteSpace: "pre-wrap" }}>{point.defaultResponse}</div>
-              </>
-            )}
+              )}
+            </div>
+
+            {/* Default Response (editable) */}
+            <div>
+              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 4 }}>
+                Default Response
+              </div>
+              {editingField === "defaultResponse" ? (
+                <textarea
+                  autoFocus
+                  value={fieldDraft}
+                  onChange={(e) => setFieldDraft(e.target.value)}
+                  onBlur={() => {
+                    if (fieldDraft !== point.defaultResponse) {
+                      onUpdatePoint?.(point.id, { defaultResponse: fieldDraft });
+                    }
+                    setEditingField(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEditingField(null);
+                  }}
+                  style={{
+                    width: "100%", minHeight: 60, fontSize: 13, lineHeight: 1.5,
+                    background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
+                    color: "var(--text)", padding: "6px 8px", borderRadius: 6, outline: "none",
+                    fontFamily: "inherit", resize: "vertical", boxSizing: "border-box",
+                  }}
+                />
+              ) : (
+                <div
+                  onClick={() => {
+                    if (onUpdatePoint) {
+                      setFieldDraft(point.defaultResponse);
+                      setEditingField("defaultResponse");
+                    }
+                  }}
+                  style={{
+                    fontSize: 13, lineHeight: 1.5, color: "var(--text)",
+                    whiteSpace: "pre-wrap", cursor: onUpdatePoint ? "pointer" : "default",
+                    fontStyle: point.defaultResponse ? "normal" : "italic",
+                    padding: "2px 0", borderRadius: 4,
+                  }}
+                  title={onUpdatePoint ? "Click to edit" : undefined}
+                >
+                  {point.defaultResponse || (onUpdatePoint ? "(click to add default response)" : "No default response")}
+                </div>
+              )}
+            </div>
             <div style={{ height: 1, background: "var(--panel-border)" }} />
             {loadingContent && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading content...</div>}
             {!loadingContent && pageContent && <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{pageContent}</div>}
