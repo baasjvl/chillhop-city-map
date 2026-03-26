@@ -122,6 +122,13 @@ export default function Home() {
     } catch { setPoints(prev); }
   };
 
+  const handleUpdatePageContent = async (id: string, content: string) => {
+    try {
+      const res = await fetch("/api/update-page-content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageId: id, content }) });
+      if (!res.ok) { const data = await res.json(); alert(data.error || "Failed to save content"); }
+    } catch { alert("Failed to save content"); }
+  };
+
   const handleUpdateStatus = async (id: string, status: string) => {
     const prev = points;
     setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, status } : p)));
@@ -386,6 +393,7 @@ export default function Home() {
           onStartPlace={isAuthenticated ? handleStartPlacePoi : undefined}
           onUpdateStatus={isAuthenticated ? handleUpdateStatus : undefined}
           onUpdatePoint={isAuthenticated ? handleUpdatePoint : undefined}
+          onUpdatePageContent={isAuthenticated ? handleUpdatePageContent : undefined}
         />
       )}
       {selectedTagItem && (

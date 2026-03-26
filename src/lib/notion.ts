@@ -186,6 +186,50 @@ export async function getPageContent(pageId: string): Promise<string> {
   return blocks.join("\n\n");
 }
 
+export async function updatePageContent(
+  pageId: string,
+  content: string
+): Promise<void> {
+  // Delete all existing blocks
+  let cursor: string | undefined = undefined;
+  const blockIds: string[] = [];
+  do {
+    const response = await notion.blocks.children.list({
+      block_id: pageId,
+      start_cursor: cursor,
+      page_size: 100,
+    });
+    for (const block of response.results) {
+      blockIds.push(block.id);
+    }
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  for (const id of blockIds) {
+    await notion.blocks.delete({ block_id: id });
+  }
+
+  // Create new paragraph blocks from content
+  const lines = content.split("\n").filter((l) => l.trim() !== "");
+  if (lines.length === 0) return;
+
+  // Notion limits appending to 100 blocks at a time
+  for (let i = 0; i < lines.length; i += 100) {
+    const batch = lines.slice(i, i + 100);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (notion.blocks.children.append as any)({
+      block_id: pageId,
+      children: batch.map((line) => ({
+        object: "block",
+        type: "paragraph",
+        paragraph: {
+          rich_text: [{ type: "text", text: { content: line } }],
+        },
+      })),
+    });
+  }
+}
+
 export async function updatePointStatus(
   pageId: string,
   status: string
