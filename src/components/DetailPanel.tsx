@@ -124,7 +124,7 @@ export default function DetailPanel({
             }}
             title={isTag && onUpdateTag ? "Click to edit name" : undefined}
           >
-            {item.name}
+            {item.name || (isTag && onUpdateTag ? <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontWeight: 400 }}>(unnamed — click to edit)</span> : item.name)}
           </h2>
         )}
         <button onClick={onClose} style={{

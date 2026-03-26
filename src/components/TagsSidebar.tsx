@@ -366,7 +366,7 @@ export default function TagsSidebar({
         {/* Placed tags list */}
         <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
           <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>
-            Tags <span style={{ fontWeight: 400 }}>({filteredPlaced.length}/{placed.length})</span>
+            Tasks <span style={{ fontWeight: 400 }}>({filteredPlaced.length}/{placed.length})</span>
           </h3>
         </div>
         <div style={{ flex: 1, overflowY: "auto" }}>

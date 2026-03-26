@@ -93,7 +93,7 @@ export default function Toolbar({
                 fontFamily: "inherit",
               }}
             >
-              {mode === "pois" ? "POIs" : mode === "tags" ? "Tags" : "Routines"}
+              {mode === "pois" ? "POIs" : mode === "tags" ? "Tasks" : "Routines"}
             </button>
           ))}
         </div>

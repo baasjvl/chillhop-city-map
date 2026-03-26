@@ -62,7 +62,7 @@ export async function getMapTags(bustCache = false): Promise<MapTag[]> {
         name: getTitle(props["Name"]),
         tagType: getSelect(props["Select"]),
         done: getCheckbox(props["Done?"]),
-        isLocationView: getCheckbox(props["Is Location View"]),
+        isLocationView: getCheckbox(props["Is Location View"]) || getCheckbox(props["Is location view"]) || getCheckbox(props["Location View"]),
         x: getNumber(props["X (Map)"]),
         y: getNumber(props["Y (Map)"]),
         addedBy: getRichText(props["Added by"]),
@@ -94,13 +94,17 @@ export async function createMapTag(
   addedBy: string
 ): Promise<MapTag> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const properties: Record<string, any> = {
+    Name: { title: [{ text: { content: name } }] },
+    Select: { select: { name: tagType } },
+  };
+  if (addedBy) {
+    properties["Added by"] = { rich_text: [{ text: { content: addedBy } }] };
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const page = await (notion.pages.create as any)({
     parent: { database_id: DB_MAP_TAGS },
-    properties: {
-      Name: { title: [{ text: { content: name } }] },
-      Select: { select: { name: tagType } },
-      "Added by": { rich_text: [{ text: { content: addedBy } }] },
-    },
+    properties,
   });
 
   cache = null;

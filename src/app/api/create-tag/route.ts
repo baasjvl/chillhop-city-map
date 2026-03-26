@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
     const tag = await createMapTag(name.trim(), tagType, addedBy || "Anonymous");
     return NextResponse.json(tag);
   } catch (error) {
-    console.error("Failed to create tag:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to create tag:", msg, error);
     return NextResponse.json(
-      { error: "Failed to create tag" },
+      { error: `Failed to create tag: ${msg}` },
       { status: 500 }
     );
   }
