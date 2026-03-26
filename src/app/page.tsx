@@ -113,7 +113,7 @@ export default function Home() {
     } catch { alert("Failed to create entry"); }
   };
 
-  const handleUpdatePoint = async (id: string, updates: { description?: string; defaultResponse?: string }) => {
+  const handleUpdatePoint = async (id: string, updates: { description?: string; defaultResponse?: string; type?: string }) => {
     const prev = points;
     setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     try {
@@ -388,7 +388,7 @@ export default function Home() {
 
       {selectedPoint && (
         <DetailPanel
-          point={selectedPoint} dbStatuses={dbOptions.statuses}
+          point={selectedPoint} dbStatuses={dbOptions.statuses} dbTypes={dbOptions.types}
           onClose={() => selectPoi(null)}
           onStartPlace={isAuthenticated ? handleStartPlacePoi : undefined}
           onUpdateStatus={isAuthenticated ? handleUpdateStatus : undefined}

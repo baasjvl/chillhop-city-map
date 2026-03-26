@@ -318,12 +318,29 @@ export default function RoutinesSidebar({
                               ) : (
                                 <span style={{ fontWeight: 500, fontSize: 14 }}>{stop.time}</span>
                               )}
+                              {isEditing ? (
+                              <input
+                                type="text"
+                                value={stop.location}
+                                onChange={(e) => onEditStop(i, { location: e.target.value })}
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="POI name or x,y"
+                                style={{
+                                  width: "100%", background: "rgba(58,50,38,0.3)",
+                                  border: "1px solid var(--panel-border)", color: "var(--text)",
+                                  padding: "3px 6px", borderRadius: 4, fontSize: 12,
+                                  fontFamily: "inherit", marginTop: 2, outline: "none",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            ) : (
                               <div style={{
                                 fontSize: 12, color: stop.x !== undefined ? "var(--text-muted)" : "#E85D5D",
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2,
                               }}>
                                 {stop.location}{stop.x === undefined && " (unresolved)"}
                               </div>
+                            )}
                             </div>
                             {isAuthenticated && (
                               <button

@@ -318,7 +318,7 @@ export async function placePoint(
 
 export async function updatePointFields(
   pageId: string,
-  updates: { description?: string; defaultResponse?: string }
+  updates: { description?: string; defaultResponse?: string; type?: string }
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {};
@@ -328,6 +328,9 @@ export async function updatePointFields(
   }
   if (updates.defaultResponse !== undefined) {
     properties["Default Response"] = { rich_text: [{ text: { content: updates.defaultResponse } }] };
+  }
+  if (updates.type !== undefined) {
+    properties["Type"] = { select: { name: updates.type } };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

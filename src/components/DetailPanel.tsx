@@ -9,13 +9,14 @@ interface DetailPanelProps {
   tag?: MapTag | null;
   character?: Character | null;
   dbStatuses: string[];
+  dbTypes?: string[];
   dbTagTypes?: string[];
   onClose: () => void;
   onStartPlace?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
   onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string }) => void;
   onDeleteTag?: (id: string) => void;
-  onUpdatePoint?: (id: string, updates: { description?: string; defaultResponse?: string }) => void;
+  onUpdatePoint?: (id: string, updates: { description?: string; defaultResponse?: string; type?: string }) => void;
   onUpdatePageContent?: (id: string, content: string) => void;
 }
 
@@ -24,6 +25,7 @@ export default function DetailPanel({
   tag,
   character,
   dbStatuses,
+  dbTypes = [],
   dbTagTypes = [],
   onClose,
   onStartPlace,
@@ -36,6 +38,7 @@ export default function DetailPanel({
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showTagTypeMenu, setShowTagTypeMenu] = useState(false);
   const [editingTagName, setEditingTagName] = useState(false);
   const [tagNameDraft, setTagNameDraft] = useState("");
@@ -45,6 +48,7 @@ export default function DetailPanel({
   const [contentDraft, setContentDraft] = useState("");
   const [savingContent, setSavingContent] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
+  const typeMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
 
   const item = point || tag || character;
@@ -53,14 +57,15 @@ export default function DetailPanel({
 
   // Close menus on click outside
   useEffect(() => {
-    if (!showStatusMenu && !showTagTypeMenu) return;
+    if (!showStatusMenu && !showTypeMenu && !showTagTypeMenu) return;
     const handleClick = (e: MouseEvent) => {
       if (showStatusMenu && statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) setShowStatusMenu(false);
+      if (showTypeMenu && typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setShowTypeMenu(false);
       if (showTagTypeMenu && tagTypeMenuRef.current && !tagTypeMenuRef.current.contains(e.target as Node)) setShowTagTypeMenu(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [showStatusMenu, showTagTypeMenu]);
+  }, [showStatusMenu, showTypeMenu, showTagTypeMenu]);
 
   // Load page content for POIs and characters
   const contentId = point?.id || character?.id;
@@ -148,12 +153,37 @@ export default function DetailPanel({
         {/* POI: Type & Status */}
         {point && (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {point.type && (
-              <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(point.type) }} />
-                {point.type}
-              </div>
-            )}
+            <div ref={typeMenuRef} style={{ position: "relative" }}>
+              <button
+                onClick={() => onUpdatePoint && dbTypes.length > 0 && setShowTypeMenu(!showTypeMenu)}
+                style={{
+                  fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 500,
+                  background: `${getTypeColor(point.type)}22`, color: getTypeColor(point.type),
+                  border: "none", cursor: onUpdatePoint && dbTypes.length > 0 ? "pointer" : "default", fontFamily: "inherit",
+                }}
+              >
+                {point.type || "No type"}
+              </button>
+              {showTypeMenu && (
+                <div style={{
+                  position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--panel)",
+                  border: "1px solid var(--panel-border)", borderRadius: 8, padding: 4, zIndex: 10,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)", minWidth: 160,
+                }}>
+                  {dbTypes.map((t) => (
+                    <button key={t} onClick={() => { onUpdatePoint!(point.id, { type: t }); setShowTypeMenu(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 10px",
+                        border: "none", background: t === point.type ? "rgba(245,168,85,0.15)" : "transparent",
+                        color: "var(--text)", fontSize: 12, cursor: "pointer", borderRadius: 4, fontFamily: "inherit", textAlign: "left",
+                      }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(t), flexShrink: 0 }} />
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div ref={statusMenuRef} style={{ position: "relative" }}>
               <button
                 onClick={() => onUpdateStatus && setShowStatusMenu(!showStatusMenu)}
