@@ -78,7 +78,7 @@ export default function Toolbar({
 
         {/* View mode toggle */}
         <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--panel-border)" }}>
-          {(["pois", "tags", "routines"] as const).map((mode) => (
+          {(["pois", "routines", "tags"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => onViewModeChange(mode)}
