@@ -112,7 +112,7 @@ export async function getNotablePoints(
         name: getTitle(props["Name"]),
         description: getRichText(props["Description"]),
         defaultResponse: getRichText(props["Default Response"]),
-        isLocationView: getCheckbox(props["Is Location View"]) || getCheckbox(props["Is location view"]) || getCheckbox(props["Location View"]),
+        isLocationView: getCheckbox(props["Is location view?"]),
         type: getSelect(props["Type"]) || getSelect(props["Category"]),
         status: getStatus(props["Status"]),
         engagementLayers: getMultiSelect(props["Engagement Layer"]),
