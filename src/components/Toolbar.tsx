@@ -10,6 +10,7 @@ interface ToolbarProps {
   onViewModeChange: (mode: ViewMode) => void;
   onRefresh: () => void;
   onLogin: (name: string, password: string) => Promise<boolean>;
+  onLogout: () => void;
 }
 
 export default function Toolbar({
@@ -19,6 +20,7 @@ export default function Toolbar({
   onViewModeChange,
   onRefresh,
   onLogin,
+  onLogout,
 }: ToolbarProps) {
   const [showLogin, setShowLogin] = useState(false);
   const [loginName, setLoginName] = useState("");
@@ -101,9 +103,26 @@ export default function Toolbar({
         <div style={{ flex: 1 }} />
 
         {isAuthenticated ? (
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            Editing as <strong style={{ color: "#F5A855" }}>{authorName}</strong>
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              Editing as <strong style={{ color: "#F5A855" }}>{authorName}</strong>
+            </span>
+            <button
+              onClick={onLogout}
+              style={{
+                background: "transparent",
+                border: "1px solid var(--panel-border)",
+                color: "var(--text-muted)",
+                padding: "4px 8px",
+                borderRadius: 4,
+                fontSize: 11,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Sign out
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => setShowLogin(true)}

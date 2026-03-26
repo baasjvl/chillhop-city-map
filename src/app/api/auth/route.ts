@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
   return response;
 }
 
+export async function DELETE() {
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set("loremap-auth", "", { maxAge: 0 });
+  response.cookies.set("loremap-author", "", { maxAge: 0 });
+  return response;
+}
+
 export async function GET() {
   // Check if authenticated
   const { cookies } = await import("next/headers");

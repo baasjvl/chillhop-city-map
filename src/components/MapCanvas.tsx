@@ -387,6 +387,42 @@ export default function MapCanvas({
         const pinY = isDragging && draggingPos ? draggingPos.y : p.y!;
         const { sx, sy } = toScreen(pinX, pinY);
 
+        if (p.isLocationView) {
+          // Location view: rounded square, centered on point
+          const lvSize = pinW * 1.1;
+          const iconSize = Math.max(10, lvSize * 0.5);
+          return (
+            <div key={p.id} style={{
+              position: "absolute", left: sx, top: sy, transform: "translate(-50%, -50%)",
+              zIndex: isDragging ? 30 : isSelected ? 20 : isHovered ? 15 : 10,
+              pointerEvents: "none",
+            }}>
+              <div style={{
+                width: lvSize, height: lvSize, borderRadius: 6,
+                background: color,
+                border: "2.5px solid rgba(255,255,255,1)",
+                boxShadow: isDragging
+                  ? "0 2px 8px rgba(0,0,0,0.6)"
+                  : "0 1px 4px rgba(0,0,0,0.5), 0 0 8px rgba(255,255,255,0.3)",
+                opacity: isDragging ? 0.8 : 1,
+                transition: "width 0.1s, height 0.1s",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {getPoiIcon(p.type, { size: iconSize, color: "rgba(255,255,255,0.9)" })}
+              </div>
+              {(isHovered || isSelected) && !isDragging && (
+                <div style={{
+                  position: "absolute", top: lvSize + 4, left: "50%", transform: "translateX(-50%)",
+                  fontSize: 11, whiteSpace: "nowrap", background: "rgba(58, 50, 38, 0.9)",
+                  padding: "2px 8px", borderRadius: 4, color: "#F5F0E8", pointerEvents: "none",
+                }}>
+                  {p.name}
+                </div>
+              )}
+            </div>
+          );
+        }
+
         const pinH = pinW * 1.3; // taller than wide for the pointed bottom
         const iconSize = Math.max(10, pinW * 0.5);
 

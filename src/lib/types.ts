@@ -3,6 +3,7 @@ export interface NotablePoint {
   name: string;
   description: string;
   defaultResponse: string;
+  isLocationView: boolean;
   type: string | null;
   status: string | null;
   engagementLayers: string[];

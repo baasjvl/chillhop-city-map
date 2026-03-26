@@ -83,6 +83,12 @@ export default function Home() {
     return false;
   };
 
+  const handleLogout = async () => {
+    await fetch("/api/auth", { method: "DELETE" });
+    setIsAuthenticated(false);
+    setAuthorName("");
+  };
+
   // === Selection ===
   const selectPoi = (id: string | null) => { setSelectedId(id); setSelectedKind(id ? "poi" : null); };
   const selectTag = (id: string | null) => { setSelectedId(id); setSelectedKind(id ? "tag" : null); };
@@ -309,6 +315,7 @@ export default function Home() {
         onViewModeChange={handleViewModeChange}
         onRefresh={handleRefresh}
         onLogin={handleLogin}
+        onLogout={handleLogout}
       />
 
       {viewMode === "pois" && (

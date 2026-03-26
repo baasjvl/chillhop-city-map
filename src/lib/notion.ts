@@ -34,6 +34,11 @@ function getNumber(prop: unknown): number | null {
   return p?.number ?? null;
 }
 
+function getCheckbox(prop: unknown): boolean {
+  const p = prop as { checkbox?: boolean };
+  return p?.checkbox ?? false;
+}
+
 function getStatus(prop: unknown): string | null {
   // Handles both Notion "status" type and "select" type
   const p = prop as {
@@ -107,6 +112,7 @@ export async function getNotablePoints(
         name: getTitle(props["Name"]),
         description: getRichText(props["Description"]),
         defaultResponse: getRichText(props["Default Response"]),
+        isLocationView: getCheckbox(props["Is Location View"]) || getCheckbox(props["Is location view"]) || getCheckbox(props["Location View"]),
         type: getSelect(props["Type"]) || getSelect(props["Category"]),
         status: getStatus(props["Status"]),
         engagementLayers: getMultiSelect(props["Engagement Layer"]),
@@ -230,6 +236,7 @@ export async function createPoint(name: string): Promise<NotablePoint> {
     name,
     description: "",
     defaultResponse: "",
+    isLocationView: false,
     type: getSelect(props["Type"]) || getSelect(props["Category"]),
     status: "Placeholder",
     engagementLayers: [],
