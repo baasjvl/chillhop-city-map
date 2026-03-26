@@ -25,19 +25,29 @@ function FilledIcon({ size = 12, color = "currentColor", d }: IconProps & { d: s
 
 // === POI type icons ===
 
-// Business — briefcase
-export function BusinessIcon(p: IconProps) {
-  return <Icon {...p} d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2ZM16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />;
-}
-
 // Landmark — flag
 export function LandmarkIcon(p: IconProps) {
   return <Icon {...p} d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" />;
 }
 
-// Venue — music note
-export function VenueIcon(p: IconProps) {
-  return <Icon {...p} d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />;
+// Food & Drink — coffee cup
+export function FoodDrinkIcon(p: IconProps) {
+  return <Icon {...p} d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4ZM6 2v3M10 2v3M14 2v3" />;
+}
+
+// Shop — shopping bag
+export function ShopIcon(p: IconProps) {
+  return <Icon {...p} d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4ZM3 6h18M16 10a4 4 0 0 1-8 0" />;
+}
+
+// Public — building with columns
+export function PublicIcon(p: IconProps) {
+  return <Icon {...p} d="M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6" />;
+}
+
+// Recreation — game controller / ball
+export function RecreationIcon(p: IconProps) {
+  return <Icon {...p} d="M12 12m-9 0a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 3v18M3 12h18" />;
 }
 
 // Cultural — palette
@@ -53,9 +63,9 @@ export function CulturalIcon(p: IconProps) {
   );
 }
 
-// Infrastructure — wrench
-export function InfrastructureIcon(p: IconProps) {
-  return <Icon {...p} d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z" />;
+// Transport — tram/rail
+export function TransportIcon(p: IconProps) {
+  return <Icon {...p} d="M4 15V9a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2ZM8 19l-2 3M16 19l2 3M9 9h6M9 13h6" />;
 }
 
 // Residential — home
@@ -63,14 +73,9 @@ export function ResidentialIcon(p: IconProps) {
   return <Icon {...p} d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />;
 }
 
-// Shop / Market — shopping bag
-export function ShopIcon(p: IconProps) {
-  return <Icon {...p} d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4ZM3 6h18M16 10a4 4 0 0 1-8 0" />;
-}
-
-// Nature — tree/leaf
-export function NatureIcon(p: IconProps) {
-  return <Icon {...p} d="M11 20A7 7 0 0 1 9.8 6.9C15.5 4.9 17 3.5 17 3.5s1.5 2.5 1.5 6c0 3.5-2.5 6-5 7.5M12 20v-8" />;
+// Area — map/region outline
+export function AreaIcon(p: IconProps) {
+  return <Icon {...p} d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4ZM8 2v16M16 6v16" />;
 }
 
 // === Tag type icons ===
@@ -98,14 +103,15 @@ export function SpeechIcon(p: IconProps) {
 // === Lookup helpers ===
 
 const POI_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
-  Business: BusinessIcon,
   Landmark: LandmarkIcon,
-  Venue: VenueIcon,
+  "Food & Drink": FoodDrinkIcon,
+  Shop: ShopIcon,
+  Public: PublicIcon,
+  Recreation: RecreationIcon,
   Cultural: CulturalIcon,
-  Infrastructure: InfrastructureIcon,
+  Transport: TransportIcon,
   Residential: ResidentialIcon,
-  "Shop / Market": ShopIcon,
-  Nature: NatureIcon,
+  Area: AreaIcon,
 };
 
 const TAG_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {

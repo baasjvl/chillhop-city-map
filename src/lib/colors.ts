@@ -1,13 +1,14 @@
 // Pin colors by Notable Point type
 export const TYPE_COLORS: Record<string, string> = {
-  Business: "#5B9BD5",
   Landmark: "#F5A855",
-  Venue: "#E85D5D",
+  "Food & Drink": "#E85D5D",
+  Shop: "#5B9BD5",
+  Public: "#8B8178",
+  Recreation: "#7CB87C",
   Cultural: "#9B72CF",
-  Infrastructure: "#8B8178",
+  Transport: "#E8C05A",
   Residential: "#6BBF6B",
-  "Shop / Market": "#E88BC4",
-  Nature: "#7CB87C",
+  Area: "#E88BC4",
 };
 
 export const STATUS_COLORS: Record<string, string> = {
@@ -29,9 +30,9 @@ export function getStatusColor(status: string | null): string {
 }
 
 export const TAG_TYPE_COLORS: Record<string, string> = {
+  "Art Brief": "#9B72CF",
   "Design Change": "#E8C05A",
-  "POI To Do": "#5AADE8",
-  "Design To Do": "#9B72CF",
+  "POI Idea": "#5AADE8",
 };
 
 export function getTagTypeColor(type: string | null): string {
