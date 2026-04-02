@@ -167,7 +167,7 @@ export default function Home() {
     } catch { alert("Failed to create tag"); }
   };
 
-  const handleUpdateTag = async (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessId?: string | null }) => {
+  const handleUpdateTag = async (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessIds?: string[] }) => {
     const prev = tags;
     setTags((ts) => ts.map((t) => (t.id === id ? { ...t, ...updates } : t)));
     try {

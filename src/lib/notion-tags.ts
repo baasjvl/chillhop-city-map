@@ -38,9 +38,43 @@ function getCreatedTime(prop: unknown): string {
   return p?.created_time ?? "";
 }
 
-function getRelationFirst(prop: unknown): string | null {
+function getRelationIds(prop: unknown): string[] {
   const p = prop as { relation?: Array<{ id: string }> };
-  return p?.relation?.[0]?.id ?? null;
+  return p?.relation?.map((r) => r.id) ?? [];
+}
+
+// Cache the detected relation property name
+let relationPropName: string | null = null;
+
+async function getRelationPropName(): Promise<string | null> {
+  if (relationPropName) return relationPropName;
+  try {
+    const db = await notion.databases.retrieve({ database_id: DB_MAP_TAGS });
+    const props = db.properties as Record<string, { type: string }>;
+    for (const [name, prop] of Object.entries(props)) {
+      if (prop.type === "relation") {
+        relationPropName = name;
+        return name;
+      }
+    }
+  } catch (e) {
+    console.error("Failed to detect relation property:", e);
+  }
+  return null;
+}
+
+function findRelationProp(props: Record<string, unknown>): string[] {
+  // Try known names first for speed
+  for (const name of ["Points of Interest", "Points of interest", "Business"]) {
+    const ids = getRelationIds(props[name]);
+    if (ids.length > 0) return ids;
+  }
+  // Fallback: check all props for relation type
+  for (const val of Object.values(props)) {
+    const ids = getRelationIds(val);
+    if (ids.length > 0) return ids;
+  }
+  return [];
 }
 
 export async function getMapTags(bustCache = false): Promise<MapTag[]> {
@@ -73,7 +107,7 @@ export async function getMapTags(bustCache = false): Promise<MapTag[]> {
         addedBy: getRichText(props["Added by"]),
         createdTime: getCreatedTime(props["Created time"]),
         notionUrl: (page as { url: string }).url,
-        businessId: getRelationFirst(props["Points of Interest"]) ?? getRelationFirst(props["Business"]),
+        businessIds: findRelationProp(props),
       });
     }
 
@@ -126,13 +160,13 @@ export async function createMapTag(
     addedBy,
     createdTime: new Date().toISOString(),
     notionUrl: (page as { url: string }).url,
-    businessId: null,
+    businessIds: [],
   };
 }
 
 export async function updateMapTag(
   pageId: string,
-  updates: { done?: boolean; tagType?: string; name?: string; businessId?: string | null }
+  updates: { done?: boolean; tagType?: string; name?: string; businessIds?: string[] }
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {};
@@ -146,10 +180,13 @@ export async function updateMapTag(
   if (updates.name !== undefined) {
     properties["Name"] = { title: [{ text: { content: updates.name } }] };
   }
-  if (updates.businessId !== undefined) {
-    properties["Points of Interest"] = {
-      relation: updates.businessId ? [{ id: updates.businessId }] : [],
-    };
+  if (updates.businessIds !== undefined) {
+    const propName = await getRelationPropName();
+    if (propName) {
+      properties[propName] = {
+        relation: updates.businessIds.map((id) => ({ id })),
+      };
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

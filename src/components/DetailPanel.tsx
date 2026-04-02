@@ -14,7 +14,7 @@ interface DetailPanelProps {
   onClose: () => void;
   onStartPlace?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
-  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessId?: string | null }) => void;
+  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessIds?: string[] }) => void;
   onDeleteTag?: (id: string) => void;
   allPoints?: NotablePoint[];
   onSelectPoi?: (id: string) => void;
@@ -283,110 +283,113 @@ export default function DetailPanel({
               </div>
             )}
 
-            {/* Business (linked POI) */}
+            {/* Business (linked POIs) */}
             <div>
               <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 4 }}>
                 Business
               </div>
-              {(() => {
-                const linkedPoi = tag.businessId ? allPoints.find((p) => p.id === tag.businessId) : null;
-                return (
-                  <div ref={businessMenuRef} style={{ position: "relative" }}>
-                    {linkedPoi ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(linkedPoi.type), flexShrink: 0 }} />
-                        <button
-                          onClick={() => onSelectPoi?.(linkedPoi.id)}
-                          style={{
-                            background: "none", border: "none", color: "#F5A855", fontSize: 13,
-                            cursor: "pointer", fontFamily: "inherit", padding: 0, textAlign: "left",
-                            textDecoration: "underline", textUnderlineOffset: 2,
-                          }}
-                        >
-                          {linkedPoi.name}
-                        </button>
-                        {linkedPoi.status && (
-                          <span style={{
-                            fontSize: 10, padding: "1px 6px", borderRadius: 10,
-                            background: `${getStatusColor(linkedPoi.status)}22`, color: getStatusColor(linkedPoi.status),
-                          }}>
-                            {linkedPoi.status}
-                          </span>
-                        )}
-                        {onUpdateTag && (
-                          <button
-                            onClick={() => onUpdateTag(tag.id, { businessId: null })}
-                            style={{
-                              background: "none", border: "none", color: "var(--text-muted)",
-                              cursor: "pointer", fontSize: 11, padding: "2px 4px", fontFamily: "inherit",
-                            }}
-                            title="Remove business link"
-                          >
-                            &#x2715;
-                          </button>
-                        )}
-                      </div>
-                    ) : (
+              <div ref={businessMenuRef} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6 }}>
+                {tag.businessIds.map((bid) => {
+                  const linkedPoi = allPoints.find((p) => p.id === bid);
+                  if (!linkedPoi) return null;
+                  return (
+                    <div key={bid} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(linkedPoi.type), flexShrink: 0 }} />
                       <button
-                        onClick={() => onUpdateTag && allPoints.length > 0 && setShowBusinessMenu(!showBusinessMenu)}
+                        onClick={() => onSelectPoi?.(linkedPoi.id)}
                         style={{
-                          fontSize: 12, padding: "4px 10px", borderRadius: 6,
-                          background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
-                          color: "var(--text-muted)", cursor: onUpdateTag && allPoints.length > 0 ? "pointer" : "default",
-                          fontFamily: "inherit", fontStyle: "italic",
+                          background: "none", border: "none", color: "#F5A855", fontSize: 13,
+                          cursor: "pointer", fontFamily: "inherit", padding: 0, textAlign: "left",
+                          textDecoration: "underline", textUnderlineOffset: 2,
                         }}
                       >
-                        {onUpdateTag ? "Link a business..." : "No business linked"}
+                        {linkedPoi.name}
                       </button>
-                    )}
-                    {showBusinessMenu && (
-                      <div style={{
-                        position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--panel)",
-                        border: "1px solid var(--panel-border)", borderRadius: 8, padding: 4, zIndex: 10,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)", minWidth: 220, maxHeight: 260, display: "flex", flexDirection: "column",
-                      }}>
-                        <input
-                          autoFocus
-                          placeholder="Search POIs..."
-                          value={businessSearch}
-                          onChange={(e) => setBusinessSearch(e.target.value)}
+                      {linkedPoi.status && (
+                        <span style={{
+                          fontSize: 10, padding: "1px 6px", borderRadius: 10,
+                          background: `${getStatusColor(linkedPoi.status)}22`, color: getStatusColor(linkedPoi.status),
+                        }}>
+                          {linkedPoi.status}
+                        </span>
+                      )}
+                      {onUpdateTag && (
+                        <button
+                          onClick={() => onUpdateTag(tag.id, { businessIds: tag.businessIds.filter((id) => id !== bid) })}
                           style={{
-                            width: "100%", padding: "6px 8px", fontSize: 12, background: "rgba(58, 50, 38, 0.2)",
-                            border: "1px solid var(--panel-border)", color: "var(--text)", borderRadius: 4,
-                            outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: 4,
+                            background: "none", border: "none", color: "var(--text-muted)",
+                            cursor: "pointer", fontSize: 11, padding: "2px 4px", fontFamily: "inherit",
                           }}
-                        />
-                        <div style={{ overflowY: "auto", maxHeight: 200 }}>
-                          {allPoints
-                            .filter((p) => p.name.toLowerCase().includes(businessSearch.toLowerCase()))
-                            .slice(0, 30)
-                            .map((p) => (
-                              <button
-                                key={p.id}
-                                onClick={() => {
-                                  onUpdateTag!(tag.id, { businessId: p.id });
-                                  setShowBusinessMenu(false);
-                                  setBusinessSearch("");
-                                }}
-                                style={{
-                                  display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 8px",
-                                  border: "none", background: "transparent", color: "var(--text)", fontSize: 12,
-                                  cursor: "pointer", borderRadius: 4, fontFamily: "inherit", textAlign: "left",
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(245,168,85,0.1)")}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                              >
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(p.type), flexShrink: 0 }} />
-                                <span style={{ flex: 1 }}>{p.name}</span>
-                                {p.type && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.type}</span>}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
+                          title="Remove business link"
+                        >
+                          &#x2715;
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {onUpdateTag && allPoints.length > 0 && (
+                  <button
+                    onClick={() => setShowBusinessMenu(!showBusinessMenu)}
+                    style={{
+                      fontSize: 12, padding: "4px 10px", borderRadius: 6, alignSelf: "flex-start",
+                      background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
+                      color: "var(--text-muted)", cursor: "pointer",
+                      fontFamily: "inherit", fontStyle: "italic",
+                    }}
+                  >
+                    {tag.businessIds.length > 0 ? "+ Add another..." : "Link a business..."}
+                  </button>
+                )}
+                {!onUpdateTag && tag.businessIds.length === 0 && (
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>No business linked</span>
+                )}
+                {showBusinessMenu && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--panel)",
+                    border: "1px solid var(--panel-border)", borderRadius: 8, padding: 4, zIndex: 10,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)", minWidth: 220, maxHeight: 260, display: "flex", flexDirection: "column",
+                  }}>
+                    <input
+                      autoFocus
+                      placeholder="Search POIs..."
+                      value={businessSearch}
+                      onChange={(e) => setBusinessSearch(e.target.value)}
+                      style={{
+                        width: "100%", padding: "6px 8px", fontSize: 12, background: "rgba(58, 50, 38, 0.2)",
+                        border: "1px solid var(--panel-border)", color: "var(--text)", borderRadius: 4,
+                        outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: 4,
+                      }}
+                    />
+                    <div style={{ overflowY: "auto", maxHeight: 200 }}>
+                      {allPoints
+                        .filter((p) => !tag.businessIds.includes(p.id) && p.name.toLowerCase().includes(businessSearch.toLowerCase()))
+                        .slice(0, 30)
+                        .map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => {
+                              onUpdateTag!(tag.id, { businessIds: [...tag.businessIds, p.id] });
+                              setShowBusinessMenu(false);
+                              setBusinessSearch("");
+                            }}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 8px",
+                              border: "none", background: "transparent", color: "var(--text)", fontSize: 12,
+                              cursor: "pointer", borderRadius: 4, fontFamily: "inherit", textAlign: "left",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(245,168,85,0.1)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(p.type), flexShrink: 0 }} />
+                            <span style={{ flex: 1 }}>{p.name}</span>
+                            {p.type && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.type}</span>}
+                          </button>
+                        ))}
+                    </div>
                   </div>
-                );
-              })()}
+                )}
+              </div>
             </div>
           </>
         )}
@@ -582,14 +585,14 @@ export default function DetailPanel({
         </div>
         {isTag && onDeleteTag && (
           <button
-            onClick={() => { if (confirm(`Delete tag "${tag!.name}"? This will archive it in Notion.`)) onDeleteTag(tag!.id); }}
+            onClick={() => { if (confirm(`Delete task "${tag!.name}"? This will archive it in Notion.`)) onDeleteTag(tag!.id); }}
             style={{
               width: "100%", background: "transparent", border: "1px solid rgba(220, 80, 80, 0.3)",
               color: "rgba(220, 80, 80, 0.7)", padding: "6px 16px", borderRadius: 6, fontSize: 12,
               cursor: "pointer", fontFamily: "inherit", marginTop: 4,
             }}
           >
-            Delete tag
+            Delete task
           </button>
         )}
       </div>

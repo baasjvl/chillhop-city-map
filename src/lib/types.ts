@@ -25,7 +25,7 @@ export interface MapTag {
   addedBy: string;
   createdTime: string;
   notionUrl: string;
-  businessId: string | null;
+  businessIds: string[];
 }
 
 export interface Character {
