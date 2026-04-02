@@ -17,7 +17,7 @@ interface SidebarProps {
   onToggle: () => void;
   onSelectPin: (id: string) => void;
   onStartPlace: (id: string) => void;
-  onCreatePoint: (name: string) => void;
+  onAddNewPoint: () => void;
   onRemovePin: (id: string) => void;
 }
 
@@ -32,7 +32,7 @@ export default function Sidebar({
   onToggle,
   onSelectPin,
   onStartPlace,
-  onCreatePoint,
+  onAddNewPoint,
   onRemovePin,
 }: SidebarProps) {
   // Use schema-provided options, fall back to data-derived
@@ -60,8 +60,6 @@ export default function Sidebar({
   const [showTypes, setShowTypes] = useState(false);
   const [showStatuses, setShowStatuses] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [newPointName, setNewPointName] = useState("");
-  const [showNewPoint, setShowNewPoint] = useState(false);
 
   const toggleType = (type: string) => {
     setActiveTypes((prev) => {
@@ -103,13 +101,6 @@ export default function Sidebar({
 
   const filteredPlaced = placed.filter(filterPoint);
   const filteredUnplaced = unplaced.filter(filterPoint);
-
-  const handleCreatePoint = () => {
-    if (!newPointName.trim()) return;
-    onCreatePoint(newPointName.trim());
-    setNewPointName("");
-    setShowNewPoint(false);
-  };
 
   // Count how many filters are active vs total
   const typeFilterLabel = `Types (${effectiveTypes.size}/${allTypes.length})`;
@@ -300,77 +291,22 @@ export default function Sidebar({
         {/* Add new entry */}
         {isAuthenticated && (
           <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--panel-border)" }}>
-            {showNewPoint ? (
-              <div style={{ display: "flex", gap: 6 }}>
-                <input
-                  type="text"
-                  placeholder="Entry name..."
-                  value={newPointName}
-                  onChange={(e) => setNewPointName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreatePoint()}
-                  autoFocus
-                  style={{
-                    flex: 1,
-                    background: "rgba(58, 50, 38, 0.2)",
-                    border: "1px solid var(--panel-border)",
-                    color: "var(--text)",
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    outline: "none",
-                    fontFamily: "inherit",
-                  }}
-                />
-                <button
-                  onClick={handleCreatePoint}
-                  style={{
-                    background: "#F5A855",
-                    border: "none",
-                    color: "#3A3226",
-                    padding: "6px 12px",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => { setShowNewPoint(false); setNewPointName(""); }}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid var(--panel-border)",
-                    color: "var(--text-muted)",
-                    padding: "6px 8px",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  x
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowNewPoint(true)}
-                style={{
-                  width: "100%",
-                  background: "rgba(58, 50, 38, 0.2)",
-                  border: "1px dashed var(--panel-border)",
-                  color: "var(--text-muted)",
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                + Add new entry
-              </button>
-            )}
+            <button
+              onClick={onAddNewPoint}
+              style={{
+                width: "100%",
+                background: "rgba(58, 50, 38, 0.2)",
+                border: "1px dashed var(--panel-border)",
+                color: "var(--text-muted)",
+                padding: "6px 10px",
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              + Add new entry — click map to place
+            </button>
           </div>
         )}
 

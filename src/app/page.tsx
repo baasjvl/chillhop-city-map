@@ -96,6 +96,11 @@ export default function Home() {
   // === POI handlers ===
   const handlePlacePin = async (id: string, x: number, y: number) => {
     if (placingKind === "tag") return handlePlaceTag(id, x, y);
+    if (id === "__new__") {
+      setPlacingId(null); setPlacingKind(null);
+      await handleCreatePointAtLocation(x, y);
+      return;
+    }
     const prev = points;
     setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, x, y } : p)));
     setPlacingId(null); setPlacingKind(null); selectPoi(id);
@@ -105,15 +110,21 @@ export default function Home() {
     } catch { setPoints(prev); }
   };
 
-  const handleCreatePoint = async (name: string) => {
+  const handleCreatePointAtLocation = async (x: number, y: number) => {
     try {
-      const res = await fetch("/api/create-point", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
-      if (res.ok) { const point = await res.json(); setPoints((pts) => [...pts, point]); }
-      else { const data = await res.json(); alert(data.error || "Failed to create entry"); }
+      const res = await fetch("/api/create-point", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "", x, y }) });
+      if (res.ok) {
+        const point = await res.json();
+        setPoints((pts) => [...pts, point]);
+        selectPoi(point.id);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to create entry");
+      }
     } catch { alert("Failed to create entry"); }
   };
 
-  const handleUpdatePoint = async (id: string, updates: { description?: string; defaultResponse?: string; type?: string }) => {
+  const handleUpdatePoint = async (id: string, updates: { description?: string; defaultResponse?: string; type?: string; name?: string }) => {
     const prev = points;
     setPoints((pts) => pts.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     try {
@@ -285,6 +296,11 @@ export default function Home() {
     setPlacingId(id); setPlacingKind("poi"); setSelectedId(null); setSelectedKind(null);
   };
 
+  const handleAddNewPoint = () => {
+    if (!isAuthenticated) { alert("Sign in to add entries"); return; }
+    setPlacingId("__new__"); setPlacingKind("poi"); setSelectedId(null); setSelectedKind(null);
+  };
+
   const handleStartPlaceTag = (id: string) => {
     if (!isAuthenticated) { alert("Sign in to place tags"); return; }
     setPlacingId(id); setPlacingKind("tag"); setSelectedId(null); setSelectedKind(null);
@@ -340,7 +356,7 @@ export default function Home() {
           selectedId={selectedId} placingId={placingId} isOpen={sidebarOpen}
           isAuthenticated={isAuthenticated}
           onToggle={() => setSidebarOpen(!sidebarOpen)} onSelectPin={selectPoi}
-          onStartPlace={handleStartPlacePoi} onCreatePoint={handleCreatePoint}
+          onStartPlace={handleStartPlacePoi} onAddNewPoint={handleAddNewPoint}
           onRemovePin={handleRemovePin}
         />
       )}

@@ -18,7 +18,7 @@ interface DetailPanelProps {
   onDeleteTag?: (id: string) => void;
   allPoints?: NotablePoint[];
   onSelectPoi?: (id: string) => void;
-  onUpdatePoint?: (id: string, updates: { description?: string; defaultResponse?: string; type?: string }) => void;
+  onUpdatePoint?: (id: string, updates: { description?: string; defaultResponse?: string; type?: string; name?: string }) => void;
   onUpdatePageContent?: (id: string, content: string) => void;
 }
 
@@ -44,8 +44,8 @@ export default function DetailPanel({
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showTagTypeMenu, setShowTagTypeMenu] = useState(false);
-  const [editingTagName, setEditingTagName] = useState(false);
-  const [tagNameDraft, setTagNameDraft] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const [editingField, setEditingField] = useState<"defaultResponse" | null>(null);
   const [fieldDraft, setFieldDraft] = useState("");
   const [editingContent, setEditingContent] = useState(false);
@@ -114,20 +114,23 @@ export default function DetailPanel({
         ) : (
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: getTypeColor(point!.type), flexShrink: 0 }} />
         )}
-        {isTag && editingTagName ? (
+        {editingName ? (
           <input
             autoFocus
-            value={tagNameDraft}
-            onChange={(e) => setTagNameDraft(e.target.value)}
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
             onBlur={() => {
-              if (tagNameDraft.trim() && tagNameDraft !== tag!.name) {
-                onUpdateTag?.(tag!.id, { name: tagNameDraft.trim() });
+              const trimmed = nameDraft.trim();
+              if (isTag && trimmed !== tag!.name) {
+                onUpdateTag?.(tag!.id, { name: trimmed });
+              } else if (point && trimmed !== point.name) {
+                onUpdatePoint?.(point.id, { name: trimmed });
               }
-              setEditingTagName(false);
+              setEditingName(false);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") setEditingTagName(false);
+              if (e.key === "Escape") setEditingName(false);
             }}
             style={{
               flex: 1, fontSize: 16, fontWeight: 600, background: "rgba(58, 50, 38, 0.2)",
@@ -137,16 +140,19 @@ export default function DetailPanel({
           />
         ) : (
           <h2
-            style={{ flex: 1, fontSize: 16, fontWeight: 600, cursor: isTag && onUpdateTag ? "pointer" : "default" }}
+            style={{ flex: 1, fontSize: 16, fontWeight: 600, cursor: (isTag && onUpdateTag) || (!isTag && !isCharacter && onUpdatePoint) ? "pointer" : "default" }}
             onClick={() => {
               if (isTag && onUpdateTag) {
-                setTagNameDraft(tag!.name);
-                setEditingTagName(true);
+                setNameDraft(tag!.name);
+                setEditingName(true);
+              } else if (point && onUpdatePoint) {
+                setNameDraft(point.name);
+                setEditingName(true);
               }
             }}
-            title={isTag && onUpdateTag ? "Click to edit name" : undefined}
+            title={(isTag && onUpdateTag) || (point && onUpdatePoint) ? "Click to edit name" : undefined}
           >
-            {item.name || (isTag && onUpdateTag ? <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontWeight: 400 }}>(unnamed — click to edit)</span> : item.name)}
+            {item.name || ((isTag && onUpdateTag) || (point && onUpdatePoint) ? <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontWeight: 400 }}>(unnamed — click to edit)</span> : item.name)}
           </h2>
         )}
         <button onClick={onClose} style={{

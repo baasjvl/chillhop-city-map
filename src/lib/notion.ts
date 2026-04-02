@@ -254,22 +254,39 @@ export async function updatePointStatus(
   cache = null;
 }
 
-export async function createPoint(name: string): Promise<NotablePoint> {
+export async function createPoint(
+  name: string,
+  x?: number | null,
+  y?: number | null
+): Promise<NotablePoint> {
   // Detect Status property type from database schema
   const db = await notion.databases.retrieve({ database_id: DB_NOTABLE_POINTS });
   const statusPropType = (db.properties as Record<string, { type: string }>)["Status"]?.type;
   const statusValue =
     statusPropType === "status"
-      ? { status: { name: "Placeholder" } }
-      : { select: { name: "Placeholder" } };
+      ? { status: { name: "To fill in" } }
+      : { select: { name: "To fill in" } };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const properties: Record<string, any> = {
+    Name: { title: [{ text: { content: name } }] },
+    Status: statusValue,
+  };
+
+  // Detect coordinate property names
+  const propNames = Object.keys(db.properties);
+  const xProp = propNames.find((n) => n === "X (Map)") || propNames.find((n) => n === "X");
+  const yProp = propNames.find((n) => n === "Y (Map)") || propNames.find((n) => n === "Y");
+
+  if (x != null && y != null && xProp && yProp) {
+    properties[xProp] = { number: x };
+    properties[yProp] = { number: y };
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const page = await (notion.pages.create as any)({
     parent: { database_id: DB_NOTABLE_POINTS },
-    properties: {
-      Name: { title: [{ text: { content: name } }] },
-      Status: statusValue,
-    },
+    properties,
   });
 
   cache = null;
@@ -282,11 +299,11 @@ export async function createPoint(name: string): Promise<NotablePoint> {
     defaultResponse: "",
     isLocationView: false,
     type: getSelect(props["Type"]) || getSelect(props["Category"]),
-    status: "Placeholder",
+    status: "To fill in",
     engagementLayers: [],
     tags: [],
-    x: null,
-    y: null,
+    x: x ?? null,
+    y: y ?? null,
     zoomMin: null,
     notionUrl: (page as { url: string }).url,
   };
@@ -318,11 +335,14 @@ export async function placePoint(
 
 export async function updatePointFields(
   pageId: string,
-  updates: { description?: string; defaultResponse?: string; type?: string }
+  updates: { description?: string; defaultResponse?: string; type?: string; name?: string }
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {};
 
+  if (updates.name !== undefined) {
+    properties["Name"] = { title: [{ text: { content: updates.name } }] };
+  }
   if (updates.description !== undefined) {
     properties["Description"] = { rich_text: [{ text: { content: updates.description } }] };
   }

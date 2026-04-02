@@ -10,13 +10,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { pageId, description, defaultResponse, type } = await request.json();
+    const { pageId, description, defaultResponse, type, name } = await request.json();
 
     if (!pageId) {
       return NextResponse.json({ error: "Missing pageId" }, { status: 400 });
     }
 
-    await updatePointFields(pageId, { description, defaultResponse, type });
+    await updatePointFields(pageId, { description, defaultResponse, type, name });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

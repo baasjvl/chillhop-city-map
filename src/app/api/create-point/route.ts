@@ -10,16 +10,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name } = await request.json();
+    const { name, x, y } = await request.json();
 
-    if (!name || typeof name !== "string" || !name.trim()) {
-      return NextResponse.json(
-        { error: "Name is required" },
-        { status: 400 }
-      );
-    }
+    const pointName = name && typeof name === "string" && name.trim() ? name.trim() : "";
 
-    const point = await createPoint(name.trim());
+    const point = await createPoint(pointName, x, y);
     return NextResponse.json(point);
   } catch (error) {
     console.error("Failed to create point:", error);
