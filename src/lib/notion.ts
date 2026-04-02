@@ -264,8 +264,8 @@ export async function createPoint(
   const statusPropType = (db.properties as Record<string, { type: string }>)["Status"]?.type;
   const statusValue =
     statusPropType === "status"
-      ? { status: { name: "To fill in" } }
-      : { select: { name: "To fill in" } };
+      ? { status: { name: "Placeholder" } }
+      : { select: { name: "Placeholder" } };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {
@@ -299,7 +299,7 @@ export async function createPoint(
     defaultResponse: "",
     isLocationView: false,
     type: getSelect(props["Type"]) || getSelect(props["Category"]),
-    status: "To fill in",
+    status: "Placeholder",
     engagementLayers: [],
     tags: [],
     x: x ?? null,

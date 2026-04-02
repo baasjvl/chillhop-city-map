@@ -12,7 +12,6 @@ export const TYPE_COLORS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
-  "To fill in": "#E8855A",
   Placeholder: "#9E8E7E",
   WIP: "#E8C05A",
   "Ready for Review": "#5AADE8",
