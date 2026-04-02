@@ -167,7 +167,7 @@ export default function Home() {
     } catch { alert("Failed to create tag"); }
   };
 
-  const handleUpdateTag = async (id: string, updates: { done?: boolean; tagType?: string; name?: string }) => {
+  const handleUpdateTag = async (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessId?: string | null }) => {
     const prev = tags;
     setTags((ts) => ts.map((t) => (t.id === id ? { ...t, ...updates } : t)));
     try {
@@ -399,10 +399,15 @@ export default function Home() {
       {selectedTagItem && (
         <DetailPanel
           point={null} tag={selectedTagItem} dbStatuses={[]} dbTagTypes={dbTagTypes}
+          allPoints={points}
           onClose={() => selectTag(null)}
           onStartPlace={isAuthenticated ? handleStartPlaceTag : undefined}
           onUpdateTag={isAuthenticated ? handleUpdateTag : undefined}
           onDeleteTag={isAuthenticated ? handleDeleteTag : undefined}
+          onSelectPoi={(id) => {
+            setViewMode("pois");
+            selectPoi(id);
+          }}
         />
       )}
       {viewMode === "routines" && selectedCharacter && (

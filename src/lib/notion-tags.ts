@@ -38,6 +38,11 @@ function getCreatedTime(prop: unknown): string {
   return p?.created_time ?? "";
 }
 
+function getRelationFirst(prop: unknown): string | null {
+  const p = prop as { relation?: Array<{ id: string }> };
+  return p?.relation?.[0]?.id ?? null;
+}
+
 export async function getMapTags(bustCache = false): Promise<MapTag[]> {
   if (!bustCache && cache && Date.now() - cache.timestamp < CACHE_TTL) {
     return cache.data;
@@ -68,6 +73,7 @@ export async function getMapTags(bustCache = false): Promise<MapTag[]> {
         addedBy: getRichText(props["Added by"]),
         createdTime: getCreatedTime(props["Created time"]),
         notionUrl: (page as { url: string }).url,
+        businessId: getRelationFirst(props["Points of Interest"]) ?? getRelationFirst(props["Business"]),
       });
     }
 
@@ -120,12 +126,13 @@ export async function createMapTag(
     addedBy,
     createdTime: new Date().toISOString(),
     notionUrl: (page as { url: string }).url,
+    businessId: null,
   };
 }
 
 export async function updateMapTag(
   pageId: string,
-  updates: { done?: boolean; tagType?: string; name?: string }
+  updates: { done?: boolean; tagType?: string; name?: string; businessId?: string | null }
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {};
@@ -138,6 +145,11 @@ export async function updateMapTag(
   }
   if (updates.name !== undefined) {
     properties["Name"] = { title: [{ text: { content: updates.name } }] };
+  }
+  if (updates.businessId !== undefined) {
+    properties["Points of Interest"] = {
+      relation: updates.businessId ? [{ id: updates.businessId }] : [],
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

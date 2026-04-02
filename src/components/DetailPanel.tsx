@@ -14,8 +14,10 @@ interface DetailPanelProps {
   onClose: () => void;
   onStartPlace?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
-  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string }) => void;
+  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessId?: string | null }) => void;
   onDeleteTag?: (id: string) => void;
+  allPoints?: NotablePoint[];
+  onSelectPoi?: (id: string) => void;
   onUpdatePoint?: (id: string, updates: { description?: string; defaultResponse?: string; type?: string }) => void;
   onUpdatePageContent?: (id: string, content: string) => void;
 }
@@ -34,6 +36,8 @@ export default function DetailPanel({
   onDeleteTag,
   onUpdatePoint,
   onUpdatePageContent,
+  allPoints = [],
+  onSelectPoi,
 }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
@@ -47,9 +51,12 @@ export default function DetailPanel({
   const [editingContent, setEditingContent] = useState(false);
   const [contentDraft, setContentDraft] = useState("");
   const [savingContent, setSavingContent] = useState(false);
+  const [showBusinessMenu, setShowBusinessMenu] = useState(false);
+  const [businessSearch, setBusinessSearch] = useState("");
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
+  const businessMenuRef = useRef<HTMLDivElement>(null);
 
   const item = point || tag || character;
   const isTag = !!tag && !point && !character;
@@ -57,15 +64,16 @@ export default function DetailPanel({
 
   // Close menus on click outside
   useEffect(() => {
-    if (!showStatusMenu && !showTypeMenu && !showTagTypeMenu) return;
+    if (!showStatusMenu && !showTypeMenu && !showTagTypeMenu && !showBusinessMenu) return;
     const handleClick = (e: MouseEvent) => {
       if (showStatusMenu && statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) setShowStatusMenu(false);
       if (showTypeMenu && typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setShowTypeMenu(false);
       if (showTagTypeMenu && tagTypeMenuRef.current && !tagTypeMenuRef.current.contains(e.target as Node)) setShowTagTypeMenu(false);
+      if (showBusinessMenu && businessMenuRef.current && !businessMenuRef.current.contains(e.target as Node)) { setShowBusinessMenu(false); setBusinessSearch(""); }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [showStatusMenu, showTypeMenu, showTagTypeMenu]);
+  }, [showStatusMenu, showTypeMenu, showTagTypeMenu, showBusinessMenu]);
 
   // Load page content for POIs and characters
   const contentId = point?.id || character?.id;
@@ -274,6 +282,112 @@ export default function DetailPanel({
                 Added by <strong style={{ color: "#F5A855" }}>{tag.addedBy}</strong>
               </div>
             )}
+
+            {/* Business (linked POI) */}
+            <div>
+              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 4 }}>
+                Business
+              </div>
+              {(() => {
+                const linkedPoi = tag.businessId ? allPoints.find((p) => p.id === tag.businessId) : null;
+                return (
+                  <div ref={businessMenuRef} style={{ position: "relative" }}>
+                    {linkedPoi ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(linkedPoi.type), flexShrink: 0 }} />
+                        <button
+                          onClick={() => onSelectPoi?.(linkedPoi.id)}
+                          style={{
+                            background: "none", border: "none", color: "#F5A855", fontSize: 13,
+                            cursor: "pointer", fontFamily: "inherit", padding: 0, textAlign: "left",
+                            textDecoration: "underline", textUnderlineOffset: 2,
+                          }}
+                        >
+                          {linkedPoi.name}
+                        </button>
+                        {linkedPoi.status && (
+                          <span style={{
+                            fontSize: 10, padding: "1px 6px", borderRadius: 10,
+                            background: `${getStatusColor(linkedPoi.status)}22`, color: getStatusColor(linkedPoi.status),
+                          }}>
+                            {linkedPoi.status}
+                          </span>
+                        )}
+                        {onUpdateTag && (
+                          <button
+                            onClick={() => onUpdateTag(tag.id, { businessId: null })}
+                            style={{
+                              background: "none", border: "none", color: "var(--text-muted)",
+                              cursor: "pointer", fontSize: 11, padding: "2px 4px", fontFamily: "inherit",
+                            }}
+                            title="Remove business link"
+                          >
+                            &#x2715;
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => onUpdateTag && allPoints.length > 0 && setShowBusinessMenu(!showBusinessMenu)}
+                        style={{
+                          fontSize: 12, padding: "4px 10px", borderRadius: 6,
+                          background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
+                          color: "var(--text-muted)", cursor: onUpdateTag && allPoints.length > 0 ? "pointer" : "default",
+                          fontFamily: "inherit", fontStyle: "italic",
+                        }}
+                      >
+                        {onUpdateTag ? "Link a business..." : "No business linked"}
+                      </button>
+                    )}
+                    {showBusinessMenu && (
+                      <div style={{
+                        position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--panel)",
+                        border: "1px solid var(--panel-border)", borderRadius: 8, padding: 4, zIndex: 10,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)", minWidth: 220, maxHeight: 260, display: "flex", flexDirection: "column",
+                      }}>
+                        <input
+                          autoFocus
+                          placeholder="Search POIs..."
+                          value={businessSearch}
+                          onChange={(e) => setBusinessSearch(e.target.value)}
+                          style={{
+                            width: "100%", padding: "6px 8px", fontSize: 12, background: "rgba(58, 50, 38, 0.2)",
+                            border: "1px solid var(--panel-border)", color: "var(--text)", borderRadius: 4,
+                            outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: 4,
+                          }}
+                        />
+                        <div style={{ overflowY: "auto", maxHeight: 200 }}>
+                          {allPoints
+                            .filter((p) => p.name.toLowerCase().includes(businessSearch.toLowerCase()))
+                            .slice(0, 30)
+                            .map((p) => (
+                              <button
+                                key={p.id}
+                                onClick={() => {
+                                  onUpdateTag!(tag.id, { businessId: p.id });
+                                  setShowBusinessMenu(false);
+                                  setBusinessSearch("");
+                                }}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 8px",
+                                  border: "none", background: "transparent", color: "var(--text)", fontSize: 12,
+                                  cursor: "pointer", borderRadius: 4, fontFamily: "inherit", textAlign: "left",
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(245,168,85,0.1)")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                              >
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: getTypeColor(p.type), flexShrink: 0 }} />
+                                <span style={{ flex: 1 }}>{p.name}</span>
+                                {p.type && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.type}</span>}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
           </>
         )}
 
