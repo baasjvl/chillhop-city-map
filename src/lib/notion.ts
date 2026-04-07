@@ -138,6 +138,22 @@ export interface NotionComment {
   createdTime: string;
 }
 
+// Cache user lookups to avoid repeated API calls
+const userCache = new Map<string, string>();
+
+async function resolveUserName(userId: string): Promise<string> {
+  if (userCache.has(userId)) return userCache.get(userId)!;
+  try {
+    const user = await notion.users.retrieve({ user_id: userId });
+    const name = user.name || (user as { person?: { email?: string } }).person?.email || "Unknown";
+    userCache.set(userId, name);
+    return name;
+  } catch {
+    userCache.set(userId, "Unknown");
+    return "Unknown";
+  }
+}
+
 export async function getPageComments(pageId: string): Promise<NotionComment[]> {
   const comments: NotionComment[] = [];
   let cursor: string | undefined = undefined;
@@ -153,10 +169,8 @@ export async function getPageComments(pageId: string): Promise<NotionComment[]> 
     for (const comment of response.results) {
       const richText = comment.rich_text as Array<{ plain_text: string }> | undefined;
       const text = richText?.map((t: { plain_text: string }) => t.plain_text).join("") ?? "";
-      const author =
-        comment.created_by?.name ||
-        comment.created_by?.person?.email ||
-        "Unknown";
+      const userId = comment.created_by?.id;
+      const author = userId ? await resolveUserName(userId) : "Unknown";
 
       comments.push({
         id: comment.id,
