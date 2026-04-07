@@ -131,6 +131,47 @@ export async function getNotablePoints(
   return results;
 }
 
+export interface NotionComment {
+  id: string;
+  author: string;
+  text: string;
+  createdTime: string;
+}
+
+export async function getPageComments(pageId: string): Promise<NotionComment[]> {
+  const comments: NotionComment[] = [];
+  let cursor: string | undefined = undefined;
+
+  do {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response: any = await (notion as any).comments.list({
+      block_id: pageId,
+      start_cursor: cursor,
+      page_size: 100,
+    });
+
+    for (const comment of response.results) {
+      const richText = comment.rich_text as Array<{ plain_text: string }> | undefined;
+      const text = richText?.map((t: { plain_text: string }) => t.plain_text).join("") ?? "";
+      const author =
+        comment.created_by?.name ||
+        comment.created_by?.person?.email ||
+        "Unknown";
+
+      comments.push({
+        id: comment.id,
+        author,
+        text,
+        createdTime: comment.created_time,
+      });
+    }
+
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  return comments;
+}
+
 export async function getPageContent(pageId: string): Promise<string> {
   const blocks: string[] = [];
   let cursor: string | undefined = undefined;

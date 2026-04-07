@@ -14,6 +14,12 @@ interface SidebarProps {
   placingId: string | null;
   isOpen: boolean;
   isAuthenticated: boolean;
+  activeTypes: Set<string> | null;
+  activeStatuses: Set<string> | null;
+  searchText: string;
+  onSetActiveTypes: (v: Set<string> | null | ((prev: Set<string> | null) => Set<string> | null)) => void;
+  onSetActiveStatuses: (v: Set<string> | null | ((prev: Set<string> | null) => Set<string> | null)) => void;
+  onSetSearchText: (v: string) => void;
   onToggle: () => void;
   onSelectPin: (id: string) => void;
   onStartPlace: (id: string) => void;
@@ -29,6 +35,12 @@ export default function Sidebar({
   placingId,
   isOpen,
   isAuthenticated,
+  activeTypes,
+  activeStatuses,
+  searchText,
+  onSetActiveTypes,
+  onSetActiveStatuses,
+  onSetSearchText,
   onToggle,
   onSelectPin,
   onStartPlace,
@@ -50,19 +62,15 @@ export default function Sidebar({
     return [...set].sort();
   }, [dbStatuses, points]);
 
-  const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
-  const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);
-
   // Lazy init: all types on, statuses on except hidden-by-default
   const effectiveTypes = activeTypes ?? new Set(allTypes);
   const effectiveStatuses = activeStatuses ?? new Set(allStatuses.filter((s) => !HIDDEN_BY_DEFAULT.has(s)));
 
   const [showTypes, setShowTypes] = useState(false);
   const [showStatuses, setShowStatuses] = useState(false);
-  const [searchText, setSearchText] = useState("");
 
   const toggleType = (type: string) => {
-    setActiveTypes((prev) => {
+    onSetActiveTypes((prev: Set<string> | null) => {
       const base = prev ?? new Set(allTypes);
       const next = new Set(base);
       if (next.has(type)) next.delete(type);
@@ -72,7 +80,7 @@ export default function Sidebar({
   };
 
   const toggleStatus = (status: string) => {
-    setActiveStatuses((prev) => {
+    onSetActiveStatuses((prev: Set<string> | null) => {
       const base = prev ?? new Set(allStatuses.filter((s) => !HIDDEN_BY_DEFAULT.has(s)));
       const next = new Set(base);
       if (next.has(status)) next.delete(status);
@@ -272,7 +280,7 @@ export default function Sidebar({
             type="text"
             placeholder="Search pins..."
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => onSetSearchText(e.target.value)}
             style={{
               width: "100%",
               background: "rgba(58, 50, 38, 0.2)",

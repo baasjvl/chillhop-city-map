@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { NotablePoint, MapTag, Character } from "@/lib/types";
+import type { NotionComment } from "@/lib/notion";
 import { getTypeColor, getStatusColor, getTagTypeColor } from "@/lib/colors";
 
 interface DetailPanelProps {
@@ -53,6 +54,8 @@ export default function DetailPanel({
   const [savingContent, setSavingContent] = useState(false);
   const [showBusinessMenu, setShowBusinessMenu] = useState(false);
   const [businessSearch, setBusinessSearch] = useState("");
+  const [comments, setComments] = useState<NotionComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
@@ -87,6 +90,17 @@ export default function DetailPanel({
       .catch(() => setPageContent(null))
       .finally(() => setLoadingContent(false));
   }, [contentId]);
+
+  // Load comments for POIs
+  useEffect(() => {
+    if (!point?.id) { setComments([]); return; }
+    setLoadingComments(true);
+    fetch(`/api/comments/${point.id}`)
+      .then((r) => r.json())
+      .then((data) => setComments(data.comments || []))
+      .catch(() => setComments([]))
+      .finally(() => setLoadingComments(false));
+  }, [point?.id]);
 
   // Reset tag menus on tag change
   useEffect(() => {
@@ -555,6 +569,37 @@ export default function DetailPanel({
               </div>
             )}
           </>
+        )}
+
+        {/* Notion Comments */}
+        {point && !loadingComments && comments.length > 0 && (
+          <>
+            <div style={{ height: 1, background: "var(--panel-border)" }} />
+            <div>
+              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 8 }}>
+                Comments ({comments.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {comments.map((c) => (
+                  <div key={c.id} style={{
+                    fontSize: 13, lineHeight: 1.5, padding: "8px 10px", borderRadius: 6,
+                    background: "rgba(58, 50, 38, 0.15)", border: "1px solid rgba(58, 50, 38, 0.1)",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#F5A855" }}>{c.author}</span>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                        {new Date(c.createdTime).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <div style={{ whiteSpace: "pre-wrap", color: "var(--text)" }}>{c.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+        {point && loadingComments && (
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading comments...</div>
         )}
 
         {/* Coordinates */}

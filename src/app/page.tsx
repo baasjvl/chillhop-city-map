@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import type { NotablePoint, MapTag, Character, ViewMode, RoutineStop } from "@/lib/types";
 import { parseRoutines, serializeRoutines, resolveStops } from "@/lib/routines";
 import Toolbar from "@/components/Toolbar";
@@ -26,6 +26,9 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [showPoisInTagView, setShowPoisInTagView] = useState(false);
+  const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
+  const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);
+  const [searchText, setSearchText] = useState("");
 
   // Routines state
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -328,6 +331,27 @@ export default function Home() {
 
   const selectedPoint = selectedKind === "poi" ? (points.find((p) => p.id === selectedId) ?? null) : null;
   const selectedTagItem = selectedKind === "tag" ? (tags.find((t) => t.id === selectedId) ?? null) : null;
+
+  const HIDDEN_BY_DEFAULT = useMemo(() => new Set(["Postponed", "Archived"]), []);
+  const allTypes = useMemo(() => dbOptions.types.length > 0 ? dbOptions.types : [...new Set(points.map((p) => p.type).filter(Boolean) as string[])].sort(), [dbOptions.types, points]);
+  const allStatuses = useMemo(() => dbOptions.statuses.length > 0 ? dbOptions.statuses : [...new Set(points.map((p) => p.status).filter(Boolean) as string[])].sort(), [dbOptions.statuses, points]);
+  const effectiveTypes = activeTypes ?? new Set(allTypes);
+  const effectiveStatuses = activeStatuses ?? new Set(allStatuses.filter((s) => !HIDDEN_BY_DEFAULT.has(s)));
+
+  const filteredPoints = useMemo(() => {
+    return points.filter((p) => {
+      if (p.type && !effectiveTypes.has(p.type)) return false;
+      if (!p.type && effectiveTypes.size < allTypes.length) return false;
+      if (p.status && !effectiveStatuses.has(p.status)) return false;
+      if (!p.status && effectiveStatuses.size < allStatuses.length) return false;
+      if (searchText) {
+        const q = searchText.toLowerCase();
+        if (!p.name.toLowerCase().includes(q) && !p.tags.some((t) => t.toLowerCase().includes(q)) && !p.description.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [points, effectiveTypes, effectiveStatuses, allTypes.length, allStatuses.length, searchText]);
+
   const ghostPoints = (viewMode === "tags" && showPoisInTagView) || viewMode === "routines" ? points : [];
 
   if (loading) {
@@ -355,6 +379,8 @@ export default function Home() {
           points={points} dbTypes={dbOptions.types} dbStatuses={dbOptions.statuses}
           selectedId={selectedId} placingId={placingId} isOpen={sidebarOpen}
           isAuthenticated={isAuthenticated}
+          activeTypes={activeTypes} activeStatuses={activeStatuses} searchText={searchText}
+          onSetActiveTypes={setActiveTypes} onSetActiveStatuses={setActiveStatuses} onSetSearchText={setSearchText}
           onToggle={() => setSidebarOpen(!sidebarOpen)} onSelectPin={selectPoi}
           onStartPlace={handleStartPlacePoi} onAddNewPoint={handleAddNewPoint}
           onRemovePin={handleRemovePin}
@@ -389,7 +415,7 @@ export default function Home() {
       )}
 
       <MapCanvas
-        points={viewMode === "pois" ? points : []}
+        points={viewMode === "pois" ? filteredPoints : []}
         tags={viewMode === "tags" ? tags : []}
         ghostPoints={ghostPoints}
         routineStops={viewMode === "routines" ? resolvedRoutineStops : []}
