@@ -26,8 +26,16 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [showPoisInTagView, setShowPoisInTagView] = useState(false);
-  const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
-  const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);
+  const [activeTypes, setActiveTypes] = useState<Set<string> | null>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = localStorage.getItem("filter-types");
+    return saved ? new Set(JSON.parse(saved) as string[]) : null;
+  });
+  const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = localStorage.getItem("filter-statuses");
+    return saved ? new Set(JSON.parse(saved) as string[]) : null;
+  });
   const [searchText, setSearchText] = useState("");
 
   // Routines state
@@ -70,6 +78,16 @@ export default function Home() {
       }
     } catch (err) { console.error("Failed to fetch characters:", err); }
   }, []);
+
+  // Persist filter state to localStorage
+  useEffect(() => {
+    if (activeTypes) localStorage.setItem("filter-types", JSON.stringify([...activeTypes]));
+    else localStorage.removeItem("filter-types");
+  }, [activeTypes]);
+  useEffect(() => {
+    if (activeStatuses) localStorage.setItem("filter-statuses", JSON.stringify([...activeStatuses]));
+    else localStorage.removeItem("filter-statuses");
+  }, [activeStatuses]);
 
   useEffect(() => {
     fetch("/api/auth").then((r) => r.json()).then((data) => {
