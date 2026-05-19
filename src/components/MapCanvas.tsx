@@ -524,17 +524,20 @@ export default function MapCanvas({
         );
       })}
 
-      {/* Routine path: dotted lines + numbered stops */}
+      {/* Routine path: dotted lines + numbered stops. `gone` stops have no
+          location, so we skip their markers and break the path at them. */}
       {routineStops.length > 0 && (() => {
-        const resolved = routineStops.filter((s) => s.x !== undefined && s.y !== undefined);
-        if (resolved.length === 0) return null;
+        const drawable = (s: RoutineStop) =>
+          !s.tags.includes("gone") && s.x !== undefined && s.y !== undefined;
+        if (!routineStops.some(drawable)) return null;
         return (
           <>
             {/* SVG overlay for dotted path lines */}
             <svg style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 6 }}>
-              {resolved.map((stop, i) => {
+              {routineStops.map((stop, i) => {
                 if (i === 0) return null;
-                const prev = resolved[i - 1];
+                const prev = routineStops[i - 1];
+                if (!drawable(prev) || !drawable(stop)) return null;
                 const { sx: x1, sy: y1 } = toScreen(prev.x!, prev.y!);
                 const { sx: x2, sy: y2 } = toScreen(stop.x!, stop.y!);
                 return (
@@ -543,8 +546,10 @@ export default function MapCanvas({
                 );
               })}
             </svg>
-            {/* Stop markers */}
-            {resolved.map((stop, i) => {
+            {/* Stop markers — number reflects position in the full schedule
+                so it matches the sidebar (gone stops still consume a slot). */}
+            {routineStops.map((stop, i) => {
+              if (!drawable(stop)) return null;
               const { sx, sy } = toScreen(stop.x!, stop.y!);
               const isInside = stop.tags.includes("inside");
               return (

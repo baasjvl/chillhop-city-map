@@ -286,7 +286,10 @@ export default function Home() {
 
   const handleConfirmStop = () => {
     if (!pendingStopCoord || !selectedCharacter || !activeSchedule) return;
-    const location = pendingStopCoord.poiName ?? `${pendingStopCoord.x.toFixed(4)},${pendingStopCoord.y.toFixed(4)}`;
+    const isGone = pendingStopTags.includes("gone");
+    const location = isGone
+      ? ""
+      : (pendingStopCoord.poiName ?? `${pendingStopCoord.x.toFixed(4)},${pendingStopCoord.y.toFixed(4)}`);
     const newStop: RoutineStop = { time: pendingStopTime, location, tags: pendingStopTags };
 
     const schedules = parseRoutines(selectedCharacter.routinesRaw);
@@ -297,6 +300,18 @@ export default function Home() {
     const newRaw = serializeRoutines(schedules);
     setCharacters((cs) => cs.map((c) => c.id === selectedCharacter.id ? { ...c, routinesRaw: newRaw } : c));
     setPendingStopCoord(null);
+  };
+
+  const handleAddGoneStop = () => {
+    if (!selectedCharacter || !activeSchedule) return;
+    const newStop: RoutineStop = { time: "12:00", location: "", tags: ["gone"] };
+    const schedules = parseRoutines(selectedCharacter.routinesRaw);
+    const schedule = schedules.find((s) => s.label === selectedScheduleLabel);
+    if (!schedule) return;
+    schedule.stops.push(newStop);
+    schedule.stops.sort((a, b) => a.time.localeCompare(b.time));
+    const newRaw = serializeRoutines(schedules);
+    setCharacters((cs) => cs.map((c) => c.id === selectedCharacter.id ? { ...c, routinesRaw: newRaw } : c));
   };
 
   const handleSaveRoutine = async () => {
@@ -424,6 +439,7 @@ export default function Home() {
           onSelectCharacter={setSelectedCharacterId}
           onSelectSchedule={setSelectedScheduleLabel}
           onStartAddStop={() => setAddingStop(true)}
+          onAddGoneStop={handleAddGoneStop}
           onAddSchedule={handleAddSchedule}
           onRemoveStop={handleRemoveStop}
           onEditStop={handleEditStop}
@@ -505,7 +521,7 @@ export default function Home() {
             }}
           />
           <div style={{ display: "flex", gap: 4 }}>
-            {["inside", "sleep", "work", "idle"].map((tag) => (
+            {["inside", "sleep", "work", "idle", "gone"].map((tag) => (
               <button key={tag} onClick={() => {
                 setPendingStopTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
               }} style={{

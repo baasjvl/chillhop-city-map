@@ -7,6 +7,7 @@ import type { RoutineSchedule, RoutineStop, NotablePoint } from "./types";
  *   label:
  *   HH:MM Location name [tag1] [tag2]
  *   HH:MM 0.65,0.48 [tag1]
+ *   HH:MM [gone]              ← character is absent from this time until next stop
  */
 export function parseRoutines(raw: string): RoutineSchedule[] {
   const schedules: RoutineSchedule[] = [];
@@ -39,7 +40,13 @@ export function parseRoutines(raw: string): RoutineSchedule[] {
     }).trim();
 
     const location = rest;
-    if (!location) continue;
+    if (!location) {
+      // Tag-only line: only allowed for the `gone` sentinel.
+      if (tags.includes("gone")) {
+        current.stops.push({ time, location: "", tags });
+      }
+      continue;
+    }
 
     current.stops.push({ time, location, tags });
   }
@@ -53,7 +60,7 @@ export function serializeRoutines(schedules: RoutineSchedule[]): string {
     .map((s) => {
       const lines = [`${s.label}:`];
       for (const stop of s.stops) {
-        let line = `${stop.time} ${stop.location}`;
+        let line = stop.location ? `${stop.time} ${stop.location}` : stop.time;
         for (const tag of stop.tags) {
           line += ` [${tag}]`;
         }

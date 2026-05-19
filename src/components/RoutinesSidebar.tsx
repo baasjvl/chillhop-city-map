@@ -17,6 +17,7 @@ interface RoutinesSidebarProps {
   onSelectCharacter: (id: string | null) => void;
   onSelectSchedule: (label: string) => void;
   onStartAddStop: () => void;
+  onAddGoneStop: () => void;
   onAddSchedule: (label: string) => void;
   onRemoveStop: (index: number) => void;
   onEditStop: (index: number, updates: Partial<RoutineStop>) => void;
@@ -36,6 +37,7 @@ export default function RoutinesSidebar({
   onSelectCharacter,
   onSelectSchedule,
   onStartAddStop,
+  onAddGoneStop,
   onAddSchedule,
   onRemoveStop,
   onEditStop,
@@ -271,6 +273,18 @@ export default function RoutinesSidebar({
                       >
                         {addingStop ? "Click map..." : "+ Add stop"}
                       </button>
+                      <button
+                        onClick={onAddGoneStop}
+                        title="Mark a time when the character is gone (not present anywhere)"
+                        style={{
+                          padding: "5px 10px", borderRadius: 6, fontSize: 12,
+                          cursor: "pointer", fontFamily: "inherit",
+                          background: "rgba(58, 50, 38, 0.2)", color: "var(--text-muted)",
+                          border: "1px solid var(--panel-border)",
+                        }}
+                      >
+                        + Gone
+                      </button>
                       <button onClick={onSaveRoutine} style={{
                         padding: "5px 10px", borderRadius: 6, fontSize: 12,
                         cursor: "pointer", fontFamily: "inherit",
@@ -288,21 +302,28 @@ export default function RoutinesSidebar({
                   ) : (
                     resolvedStops.map((stop, i) => {
                       const isEditing = editingStopIndex === i;
+                      const isGone = stop.tags.includes("gone");
                       return (
                         <div key={i} style={{
                           padding: "10px 16px", fontSize: 14,
                           borderBottom: "1px solid rgba(245,240,232,0.05)",
                           background: isEditing ? "rgba(245,168,85,0.08)" : "transparent",
                           cursor: isAuthenticated ? "pointer" : "default",
+                          opacity: isGone ? 0.75 : 1,
                         }}
                           onClick={() => isAuthenticated && !isEditing && startEditStop(i)}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{
                               width: 22, height: 22, borderRadius: "50%",
-                              background: stop.x !== undefined ? "#F5A855" : "var(--text-muted)",
+                              background: isGone
+                                ? "transparent"
+                                : stop.x !== undefined ? "#F5A855" : "var(--text-muted)",
+                              border: isGone ? "1px dashed var(--text-muted)" : "none",
                               display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 11, fontWeight: 700, color: "#3A3226", flexShrink: 0,
+                              fontSize: 11, fontWeight: 700,
+                              color: isGone ? "var(--text-muted)" : "#3A3226",
+                              flexShrink: 0,
                             }}>{i + 1}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               {isEditing ? (
@@ -318,29 +339,35 @@ export default function RoutinesSidebar({
                               ) : (
                                 <span style={{ fontWeight: 500, fontSize: 14 }}>{stop.time}</span>
                               )}
-                              {isEditing ? (
-                              <input
-                                type="text"
-                                value={stop.location}
-                                onChange={(e) => onEditStop(i, { location: e.target.value })}
-                                onClick={(e) => e.stopPropagation()}
-                                placeholder="POI name or x,y"
-                                style={{
-                                  width: "100%", background: "rgba(58,50,38,0.3)",
-                                  border: "1px solid var(--panel-border)", color: "var(--text)",
-                                  padding: "3px 6px", borderRadius: 4, fontSize: 12,
-                                  fontFamily: "inherit", marginTop: 2, outline: "none",
-                                  boxSizing: "border-box",
-                                }}
-                              />
-                            ) : (
-                              <div style={{
-                                fontSize: 12, color: stop.x !== undefined ? "var(--text-muted)" : "#E85D5D",
-                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2,
-                              }}>
-                                {stop.location}{stop.x === undefined && " (unresolved)"}
-                              </div>
-                            )}
+                              {isGone ? (
+                                <div style={{
+                                  fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", marginTop: 2,
+                                }}>
+                                  Gone — absent until next stop
+                                </div>
+                              ) : isEditing ? (
+                                <input
+                                  type="text"
+                                  value={stop.location}
+                                  onChange={(e) => onEditStop(i, { location: e.target.value })}
+                                  onClick={(e) => e.stopPropagation()}
+                                  placeholder="POI name or x,y"
+                                  style={{
+                                    width: "100%", background: "rgba(58,50,38,0.3)",
+                                    border: "1px solid var(--panel-border)", color: "var(--text)",
+                                    padding: "3px 6px", borderRadius: 4, fontSize: 12,
+                                    fontFamily: "inherit", marginTop: 2, outline: "none",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                              ) : (
+                                <div style={{
+                                  fontSize: 12, color: stop.x !== undefined ? "var(--text-muted)" : "#E85D5D",
+                                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2,
+                                }}>
+                                  {stop.location}{stop.x === undefined && " (unresolved)"}
+                                </div>
+                              )}
                             </div>
                             {isAuthenticated && (
                               <button
@@ -372,7 +399,7 @@ export default function RoutinesSidebar({
                               ))}
                               {isEditing && (
                                 <>
-                                  {["inside", "sleep", "work", "idle"].filter((t) => !stop.tags.includes(t)).map((tag) => (
+                                  {["inside", "sleep", "work", "idle", "gone"].filter((t) => !stop.tags.includes(t)).map((tag) => (
                                     <button key={tag}
                                       onClick={(e) => { e.stopPropagation(); toggleStopTag(i, tag); }}
                                       style={{
