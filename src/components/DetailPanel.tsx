@@ -86,7 +86,9 @@ export default function DetailPanel({
   // Load page content for POIs, characters, and tasks (tags)
   const contentId = point?.id || character?.id || tag?.id;
   useEffect(() => {
-    if (!contentId) { setPageContent(null); setShowStatusMenu(false); setEditingField(null); setEditingContent(false); return; }
+    // Reset transient edit state whenever the selected item changes.
+    setShowStatusMenu(false); setEditingField(null); setEditingContent(false);
+    if (!contentId) { setPageContent(null); return; }
     setLoadingContent(true);
     setPageContent(null);
     fetch(`/api/page-content/${contentId}`)
@@ -450,11 +452,80 @@ export default function DetailPanel({
               </div>
             </div>
 
-            {/* Task description (Notion page content) */}
+            {/* Task description (Notion page content, editable) */}
             <div style={{ height: 1, background: "var(--panel-border)" }} />
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>
+              Description
+            </div>
             {loadingContent && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading description...</div>}
-            {!loadingContent && pageContent && <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{pageContent}</div>}
-            {!loadingContent && pageContent === "" && <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No description on this task yet.</div>}
+            {!loadingContent && editingContent ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <textarea
+                  autoFocus
+                  value={contentDraft}
+                  onChange={(e) => setContentDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setEditingContent(false); }
+                  }}
+                  style={{
+                    width: "100%", minHeight: 150, fontSize: 13, lineHeight: 1.6,
+                    background: "rgba(58, 50, 38, 0.2)", border: "1px solid var(--panel-border)",
+                    color: "var(--text)", padding: "8px 10px", borderRadius: 6, outline: "none",
+                    fontFamily: "inherit", resize: "vertical", boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    disabled={savingContent}
+                    onClick={async () => {
+                      if (!onUpdatePageContent) return;
+                      setSavingContent(true);
+                      await onUpdatePageContent(tag.id, contentDraft);
+                      setPageContent(contentDraft);
+                      setEditingContent(false);
+                      setSavingContent(false);
+                    }}
+                    style={{
+                      background: "#F5A855", border: "none", color: "#3A3226",
+                      padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                      cursor: savingContent ? "wait" : "pointer", fontFamily: "inherit",
+                      opacity: savingContent ? 0.6 : 1,
+                    }}
+                  >
+                    {savingContent ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    onClick={() => setEditingContent(false)}
+                    style={{
+                      background: "transparent", border: "1px solid var(--panel-border)",
+                      color: "var(--text-muted)", padding: "6px 10px", borderRadius: 6, fontSize: 12,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : !loadingContent && (
+              <div
+                onClick={() => {
+                  if (onUpdatePageContent) {
+                    setContentDraft(pageContent || "");
+                    setEditingContent(true);
+                  }
+                }}
+                style={{
+                  fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap",
+                  cursor: onUpdatePageContent ? "pointer" : "default",
+                  fontStyle: (pageContent === "" || pageContent === null) ? "italic" : "normal",
+                  color: (pageContent === "" || pageContent === null) ? "var(--text-muted)" : "var(--text)",
+                  padding: "2px 0", borderRadius: 4, minHeight: 20,
+                }}
+                title={onUpdatePageContent ? "Click to edit" : undefined}
+              >
+                {pageContent || (onUpdatePageContent ? "(click to add a description)" : "No description on this task yet.")}
+              </div>
+            )}
           </>
         )}
 

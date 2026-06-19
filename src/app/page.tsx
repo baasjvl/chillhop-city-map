@@ -481,6 +481,7 @@ export default function Home() {
           onClose={() => selectTag(null)}
           onStartPlace={isAuthenticated ? handleStartPlaceTag : undefined}
           onUpdateTag={isAuthenticated ? handleUpdateTag : undefined}
+          onUpdatePageContent={isAuthenticated ? handleUpdatePageContent : undefined}
           onDeleteTag={isAuthenticated ? handleDeleteTag : undefined}
           onSelectPoi={(id) => {
             setViewMode("pois");

@@ -54,7 +54,8 @@ export default function TagsSidebar({
   const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);
   const [hideDone, setHideDone] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showTypes, setShowTypes] = useState(false);
+  const [showStatuses, setShowStatuses] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showNewTag, setShowNewTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -155,10 +156,14 @@ export default function TagsSidebar({
       >
         {/* Filters */}
         <div style={{ borderBottom: "1px solid var(--panel-border)" }}>
-          <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-            {/* Type filter dropdown */}
+          <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", padding: "12px 16px 0" }}>
+            Filters
+          </h3>
+
+          {/* Types dropdown */}
+          <div style={{ padding: "8px 16px" }}>
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setShowTypes(!showTypes)}
               style={{
                 width: "100%",
                 display: "flex",
@@ -174,11 +179,11 @@ export default function TagsSidebar({
                 fontFamily: "inherit",
               }}
             >
-              Filters — types ({effectiveTypes.size}/{allTypes.length}){allStatuses.length > 0 ? `, statuses (${effectiveStatuses.size}/${allStatuses.length})` : ""}
-              <span style={{ fontSize: 10 }}>{showFilters ? "\u25B2" : "\u25BC"}</span>
+              Types ({effectiveTypes.size}/{allTypes.length})
+              <span style={{ fontSize: 10 }}>{showTypes ? "▲" : "▼"}</span>
             </button>
-            {showFilters && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {showTypes && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 8 }}>
                 {allTypes.map((type) => {
                   const active = effectiveTypes.has(type);
                   const color = getTagTypeColor(type);
@@ -207,50 +212,74 @@ export default function TagsSidebar({
                 })}
               </div>
             )}
+          </div>
 
-            {/* Status filter */}
-            {showFilters && allStatuses.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {allStatuses.map((status) => {
-                  const active = effectiveStatuses.has(status);
-                  const color = getStatusColor(status);
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => toggleStatus(status)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "4px 10px",
-                        borderRadius: 12,
-                        fontSize: 12,
-                        cursor: "pointer",
-                        background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
-                        border: active ? `1px solid ${color}` : "1px solid transparent",
-                        color: active ? color : "var(--text-muted)",
-                        opacity: active ? 1 : 0.4,
-                      }}
-                    >
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-                      {status}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Hide done + Show POIs toggles */}
-            <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-muted)", cursor: "pointer" }}>
-                <input type="checkbox" checked={hideDone} onChange={() => setHideDone(!hideDone)} />
-                Hide done
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-muted)", cursor: "pointer" }}>
-                <input type="checkbox" checked={showPois} onChange={onTogglePois} />
-                Show POIs
-              </label>
+          {/* Statuses dropdown */}
+          {allStatuses.length > 0 && (
+            <div style={{ padding: "0 16px 8px" }}>
+              <button
+                onClick={() => setShowStatuses(!showStatuses)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "rgba(58, 50, 38, 0.2)",
+                  border: "1px solid var(--panel-border)",
+                  color: "var(--text)",
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Status ({effectiveStatuses.size}/{allStatuses.length})
+                <span style={{ fontSize: 10 }}>{showStatuses ? "▲" : "▼"}</span>
+              </button>
+              {showStatuses && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 8 }}>
+                  {allStatuses.map((status) => {
+                    const active = effectiveStatuses.has(status);
+                    const color = getStatusColor(status);
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => toggleStatus(status)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 10px",
+                          borderRadius: 12,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
+                          border: active ? `1px solid ${color}` : "1px solid transparent",
+                          color: active ? color : "var(--text-muted)",
+                          opacity: active ? 1 : 0.4,
+                        }}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                        {status}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Hide done + Show POIs toggles */}
+          <div style={{ display: "flex", gap: 12, fontSize: 12, padding: "0 16px 12px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-muted)", cursor: "pointer" }}>
+              <input type="checkbox" checked={hideDone} onChange={() => setHideDone(!hideDone)} />
+              Hide done
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-muted)", cursor: "pointer" }}>
+              <input type="checkbox" checked={showPois} onChange={onTogglePois} />
+              Show POIs
+            </label>
           </div>
         </div>
 
