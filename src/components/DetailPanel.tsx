@@ -5,6 +5,33 @@ import type { NotablePoint, MapTag, Character } from "@/lib/types";
 import type { NotionComment } from "@/lib/notion";
 import { getTypeColor, getStatusColor, getTagTypeColor } from "@/lib/colors";
 
+function PageImages({ images, onEnlarge }: { images: { url: string; caption: string }[]; onEnlarge: (url: string) => void }) {
+  const [failed, setFailed] = useState<Set<number>>(new Set());
+  if (images.length === 0) return null;
+  if (images.every((_, i) => failed.has(i))) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {images.map((img, i) =>
+        failed.has(i) ? null : (
+          <figure key={i} style={{ margin: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={img.url}
+              alt={img.caption || "Page image"}
+              onClick={() => onEnlarge(img.url)}
+              onError={() => setFailed((prev) => new Set(prev).add(i))}
+              style={{ display: "block", maxWidth: "100%", height: "auto", borderRadius: 6, cursor: "zoom-in" }}
+            />
+            {img.caption && (
+              <figcaption style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{img.caption}</figcaption>
+            )}
+          </figure>
+        )
+      )}
+    </div>
+  );
+}
+
 interface DetailPanelProps {
   point?: NotablePoint | null;
   tag?: MapTag | null;
@@ -43,6 +70,8 @@ export default function DetailPanel({
   onSelectPoi,
 }: DetailPanelProps) {
   const [pageContent, setPageContent] = useState<string | null>(null);
+  const [pageImages, setPageImages] = useState<{ url: string; caption: string }[]>([]);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
@@ -88,13 +117,14 @@ export default function DetailPanel({
   useEffect(() => {
     // Reset transient edit state whenever the selected item changes.
     setShowStatusMenu(false); setEditingField(null); setEditingContent(false);
+    setLightboxUrl(null); setPageImages([]);
     if (!contentId) { setPageContent(null); return; }
     setLoadingContent(true);
     setPageContent(null);
     fetch(`/api/page-content/${contentId}`)
       .then((r) => r.json())
-      .then((data) => setPageContent(data.content || ""))
-      .catch(() => setPageContent(null))
+      .then((data) => { setPageContent(data.content || ""); setPageImages(data.images || []); })
+      .catch(() => { setPageContent(null); setPageImages([]); })
       .finally(() => setLoadingContent(false));
   }, [contentId]);
 
@@ -119,6 +149,7 @@ export default function DetailPanel({
   const notionUrl = point?.notionUrl || tag?.notionUrl || character?.notionUrl || "";
 
   return (
+    <>
     <div
       style={{
         position: "fixed", top: 48, right: 0, width: 360, bottom: 0,
@@ -526,6 +557,7 @@ export default function DetailPanel({
                 {pageContent || (onUpdatePageContent ? "(click to add a description)" : "No description on this task yet.")}
               </div>
             )}
+            {!loadingContent && <PageImages key={contentId} images={pageImages} onEnlarge={setLightboxUrl} />}
           </>
         )}
 
@@ -541,7 +573,8 @@ export default function DetailPanel({
             <div style={{ height: 1, background: "var(--panel-border)" }} />
             {loadingContent && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading content...</div>}
             {!loadingContent && pageContent && <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{pageContent}</div>}
-            {!loadingContent && pageContent === "" && <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No content on this page yet.</div>}
+            {!loadingContent && pageContent === "" && pageImages.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No content on this page yet.</div>}
+            {!loadingContent && <PageImages key={contentId} images={pageImages} onEnlarge={setLightboxUrl} />}
           </>
         )}
 
@@ -683,6 +716,7 @@ export default function DetailPanel({
                 {pageContent || (onUpdatePageContent ? "(click to add content)" : "No content on this page yet.")}
               </div>
             )}
+            {!loadingContent && !editingContent && <PageImages key={contentId} images={pageImages} onEnlarge={setLightboxUrl} />}
           </>
         )}
 
@@ -763,5 +797,25 @@ export default function DetailPanel({
         )}
       </div>
     </div>
+
+    {/* Lightbox: click to enlarge / click anywhere to close */}
+    {lightboxUrl && (
+      <div
+        onClick={() => setLightboxUrl(null)}
+        style={{
+          position: "fixed", inset: 0, zIndex: 200, background: "rgba(0, 0, 0, 0.85)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 24, cursor: "zoom-out",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={lightboxUrl}
+          alt="Enlarged"
+          style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 8 }}
+        />
+      </div>
+    )}
+    </>
   );
 }

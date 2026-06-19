@@ -186,8 +186,19 @@ export async function getPageComments(pageId: string): Promise<NotionComment[]> 
   return comments;
 }
 
-export async function getPageContent(pageId: string): Promise<string> {
+export interface PageImage {
+  url: string;
+  caption: string;
+}
+
+export interface PageContent {
+  text: string;
+  images: PageImage[];
+}
+
+export async function getPageContent(pageId: string): Promise<PageContent> {
   const blocks: string[] = [];
+  const images: PageImage[] = [];
   let cursor: string | undefined = undefined;
 
   do {
@@ -201,6 +212,22 @@ export async function getPageContent(pageId: string): Promise<string> {
       if (!("type" in block)) continue;
       const b = block as Record<string, unknown>;
       const type = b.type as string;
+
+      // Images: collect the file/external URL + caption (display-only)
+      if (type === "image") {
+        const img = b.image as {
+          file?: { url: string };
+          external?: { url: string };
+          caption?: Array<{ plain_text: string }>;
+        } | undefined;
+        let url = img?.file?.url ?? img?.external?.url ?? "";
+        // Notion sometimes returns site-relative proxied URLs; make absolute.
+        if (url.startsWith("/")) url = `https://www.notion.so${url}`;
+        const caption = img?.caption?.map((c) => c.plain_text).join("") ?? "";
+        if (url) images.push({ url, caption });
+        continue;
+      }
+
       const data = b[type] as { rich_text?: Array<{ plain_text: string }> } | undefined;
       const text = data?.rich_text?.map((t) => t.plain_text).join("") ?? "";
 
@@ -238,14 +265,15 @@ export async function getPageContent(pageId: string): Promise<string> {
     cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
   } while (cursor);
 
-  return blocks.join("\n\n");
+  return { text: blocks.join("\n\n"), images };
 }
 
 export async function updatePageContent(
   pageId: string,
   content: string
 ): Promise<void> {
-  // Delete all existing blocks
+  // Delete existing text blocks, but preserve images (they're display-only
+  // here and can't be edited from the sidebar, so we must not lose them).
   let cursor: string | undefined = undefined;
   const blockIds: string[] = [];
   do {
@@ -255,6 +283,7 @@ export async function updatePageContent(
       page_size: 100,
     });
     for (const block of response.results) {
+      if ("type" in block && (block as { type: string }).type === "image") continue;
       blockIds.push(block.id);
     }
     cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;

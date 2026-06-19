@@ -7,8 +7,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const content = await getPageContent(id);
-    return NextResponse.json({ content });
+    const { text, images } = await getPageContent(id);
+    return NextResponse.json({ content: text, images });
   } catch (error) {
     console.error("Failed to fetch page content:", error);
     return NextResponse.json(
