@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMapTags, getTagTypeOptions } from "@/lib/notion-tags";
+import { getMapTags, getTagTypeOptions, getTagStatusOptions } from "@/lib/notion-tags";
 
 export async function GET(request: NextRequest) {
   try {
     const bustCache = request.nextUrl.searchParams.get("refresh") === "true";
-    const [tags, tagTypes] = await Promise.all([
+    const [tags, tagTypes, tagStatuses] = await Promise.all([
       getMapTags(bustCache),
       getTagTypeOptions(),
+      getTagStatusOptions(),
     ]);
-    return NextResponse.json({ tags, tagTypes });
+    return NextResponse.json({ tags, tagTypes, tagStatuses });
   } catch (error) {
     console.error("Failed to fetch map tags:", error);
     return NextResponse.json(

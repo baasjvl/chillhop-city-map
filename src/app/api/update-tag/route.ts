@@ -10,13 +10,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { pageId, done, tagType, name, businessIds } = await request.json();
+    const { pageId, done, tagType, status, name, businessIds } = await request.json();
 
     if (!pageId) {
       return NextResponse.json({ error: "Missing pageId" }, { status: 400 });
     }
 
-    await updateMapTag(pageId, { done, tagType, name, businessIds });
+    await updateMapTag(pageId, { done, tagType, status, name, businessIds });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to update tag:", error);

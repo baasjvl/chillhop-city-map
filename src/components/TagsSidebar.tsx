@@ -2,11 +2,12 @@
 
 import { useState, useMemo } from "react";
 import type { MapTag } from "@/lib/types";
-import { getTagTypeColor } from "@/lib/colors";
+import { getTagTypeColor, getStatusColor } from "@/lib/colors";
 
 interface TagsSidebarProps {
   tags: MapTag[];
   dbTagTypes: string[];
+  dbTagStatuses: string[];
   selectedId: string | null;
   placingId: string | null;
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface TagsSidebarProps {
 export default function TagsSidebar({
   tags,
   dbTagTypes,
+  dbTagStatuses,
   selectedId,
   placingId,
   isOpen,
@@ -42,7 +44,15 @@ export default function TagsSidebar({
     return [...set].sort();
   }, [dbTagTypes, tags]);
 
+  const allStatuses = useMemo(() => {
+    if (dbTagStatuses.length > 0) return dbTagStatuses;
+    const set = new Set<string>();
+    tags.forEach((t) => { if (t.status) set.add(t.status); });
+    return [...set].sort();
+  }, [dbTagStatuses, tags]);
+
   const [activeTypes, setActiveTypes] = useState<Set<string> | null>(null);
+  const [activeStatuses, setActiveStatuses] = useState<Set<string> | null>(null);
   const [hideDone, setHideDone] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -51,6 +61,7 @@ export default function TagsSidebar({
   const [newTagType, setNewTagType] = useState("");
 
   const effectiveTypes = activeTypes ?? new Set(allTypes);
+  const effectiveStatuses = activeStatuses ?? new Set(allStatuses);
 
   const toggleType = (type: string) => {
     setActiveTypes((prev) => {
@@ -62,12 +73,23 @@ export default function TagsSidebar({
     });
   };
 
+  const toggleStatus = (status: string) => {
+    setActiveStatuses((prev) => {
+      const base = prev ?? new Set(allStatuses);
+      const next = new Set(base);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  };
+
   const placed = tags.filter((t) => t.x !== null && t.y !== null);
   const unplaced = tags.filter((t) => t.x === null || t.y === null);
 
   const filterTag = (t: MapTag) => {
     if (hideDone && t.done) return false;
     if (t.tagType && !effectiveTypes.has(t.tagType)) return false;
+    if (t.status && !effectiveStatuses.has(t.status)) return false;
     if (searchText) {
       const q = searchText.toLowerCase();
       if (!t.name.toLowerCase().includes(q)) return false;
@@ -152,7 +174,7 @@ export default function TagsSidebar({
                 fontFamily: "inherit",
               }}
             >
-              Types ({effectiveTypes.size}/{allTypes.length})
+              Filters — types ({effectiveTypes.size}/{allTypes.length}){allStatuses.length > 0 ? `, statuses (${effectiveStatuses.size}/${allStatuses.length})` : ""}
               <span style={{ fontSize: 10 }}>{showFilters ? "\u25B2" : "\u25BC"}</span>
             </button>
             {showFilters && (
@@ -180,6 +202,38 @@ export default function TagsSidebar({
                     >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
                       {type}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Status filter */}
+            {showFilters && allStatuses.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {allStatuses.map((status) => {
+                  const active = effectiveStatuses.has(status);
+                  const color = getStatusColor(status);
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => toggleStatus(status)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "4px 10px",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: active ? "rgba(58, 50, 38, 0.1)" : "transparent",
+                        border: active ? `1px solid ${color}` : "1px solid transparent",
+                        color: active ? color : "var(--text-muted)",
+                        opacity: active ? 1 : 0.4,
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                      {status}
                     </button>
                   );
                 })}

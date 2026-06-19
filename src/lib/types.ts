@@ -18,6 +18,7 @@ export interface MapTag {
   id: string;
   name: string;
   tagType: string | null;
+  status: string | null;
   done: boolean;
   isLocationView: boolean;
   x: number | null;

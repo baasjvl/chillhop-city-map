@@ -23,6 +23,12 @@ function getSelect(prop: unknown): string | null {
   return p?.select?.name ?? null;
 }
 
+// Reads a value from either a Select-type or a Status-type Notion property.
+function getSelectOrStatus(prop: unknown): string | null {
+  const p = prop as { status?: { name: string } | null; select?: { name: string } | null };
+  return p?.status?.name ?? p?.select?.name ?? null;
+}
+
 function getCheckbox(prop: unknown): boolean {
   const p = prop as { checkbox?: boolean };
   return p?.checkbox ?? false;
@@ -99,7 +105,8 @@ export async function getMapTags(bustCache = false): Promise<MapTag[]> {
       results.push({
         id: page.id,
         name: getTitle(props["Name"]),
-        tagType: getSelect(props["Select"]),
+        tagType: getSelect(props["Type"]),
+        status: getSelectOrStatus(props["Status"]),
         done: getCheckbox(props["Done?"]),
         isLocationView: getCheckbox(props["Is Location View"]) || getCheckbox(props["Is location view"]) || getCheckbox(props["Location View"]),
         x: getNumber(props["X (Map)"]),
@@ -118,25 +125,56 @@ export async function getMapTags(bustCache = false): Promise<MapTag[]> {
   return results;
 }
 
+function getSelectOptions(props: Record<string, Record<string, unknown>>, propName: string): string[] {
+  const prop = props[propName];
+  // Works for both Select-type and Status-type properties.
+  const opts = (prop as { select?: { options?: Array<{ name: string }> }; status?: { options?: Array<{ name: string }> } });
+  return (opts?.select?.options ?? opts?.status?.options)?.map((o) => o.name) ?? [];
+}
+
 export async function getTagTypeOptions(): Promise<string[]> {
   const db = await notion.databases.retrieve({ database_id: DB_MAP_TAGS });
-  const selectProp = (db.properties as Record<string, Record<string, unknown>>)["Select"];
-  if (selectProp?.type === "select") {
-    const opts = (selectProp as { select?: { options?: Array<{ name: string }> } }).select?.options;
-    return opts?.map((o) => o.name) ?? [];
-  }
-  return [];
+  return getSelectOptions(db.properties as Record<string, Record<string, unknown>>, "Type");
 }
+
+export async function getTagStatusOptions(): Promise<string[]> {
+  const db = await notion.databases.retrieve({ database_id: DB_MAP_TAGS });
+  return getSelectOptions(db.properties as Record<string, Record<string, unknown>>, "Status");
+}
+
+// Cache whether the "Status" property is a Select or a Status type, so writes
+// use the correct payload shape.
+let statusPropKind: "select" | "status" | null = null;
+
+async function getStatusPropKind(): Promise<"select" | "status"> {
+  if (statusPropKind) return statusPropKind;
+  try {
+    const db = await notion.databases.retrieve({ database_id: DB_MAP_TAGS });
+    const prop = (db.properties as Record<string, { type: string }>)["Status"];
+    statusPropKind = prop?.type === "status" ? "status" : "select";
+  } catch {
+    statusPropKind = "select";
+  }
+  return statusPropKind;
+}
+
+function statusValue(kind: "select" | "status", name: string) {
+  return kind === "status" ? { status: { name } } : { select: { name } };
+}
+
+const DEFAULT_TAG_STATUS = "Submitted";
 
 export async function createMapTag(
   name: string,
   tagType: string,
   addedBy: string
 ): Promise<MapTag> {
+  const statusKind = await getStatusPropKind();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {
     Name: { title: [{ text: { content: name } }] },
-    Select: { select: { name: tagType } },
+    Type: { select: { name: tagType } },
+    Status: statusValue(statusKind, DEFAULT_TAG_STATUS),
   };
   if (addedBy) {
     properties["Added by"] = { rich_text: [{ text: { content: addedBy } }] };
@@ -153,6 +191,7 @@ export async function createMapTag(
     id: page.id,
     name,
     tagType,
+    status: DEFAULT_TAG_STATUS,
     done: false,
     isLocationView: false,
     x: null,
@@ -166,7 +205,7 @@ export async function createMapTag(
 
 export async function updateMapTag(
   pageId: string,
-  updates: { done?: boolean; tagType?: string; name?: string; businessIds?: string[] }
+  updates: { done?: boolean; tagType?: string; status?: string; name?: string; businessIds?: string[] }
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const properties: Record<string, any> = {};
@@ -175,7 +214,10 @@ export async function updateMapTag(
     properties["Done?"] = { checkbox: updates.done };
   }
   if (updates.tagType !== undefined) {
-    properties["Select"] = { select: { name: updates.tagType } };
+    properties["Type"] = { select: { name: updates.tagType } };
+  }
+  if (updates.status !== undefined) {
+    properties["Status"] = statusValue(await getStatusPropKind(), updates.status);
   }
   if (updates.name !== undefined) {
     properties["Name"] = { title: [{ text: { content: updates.name } }] };

@@ -16,6 +16,7 @@ export default function Home() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [dbOptions, setDbOptions] = useState<{ types: string[]; statuses: string[] }>({ types: [], statuses: [] });
   const [dbTagTypes, setDbTagTypes] = useState<string[]>([]);
+  const [dbTagStatuses, setDbTagStatuses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("pois");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export default function Home() {
         const data = await res.json();
         setTags(data.tags);
         if (data.tagTypes) setDbTagTypes(data.tagTypes);
+        if (data.tagStatuses) setDbTagStatuses(data.tagStatuses);
       }
     } catch (err) { console.error("Failed to fetch tags:", err); }
   }, []);
@@ -199,7 +201,7 @@ export default function Home() {
     } catch { alert("Failed to create tag"); }
   };
 
-  const handleUpdateTag = async (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessIds?: string[] }) => {
+  const handleUpdateTag = async (id: string, updates: { done?: boolean; tagType?: string; status?: string; name?: string; businessIds?: string[] }) => {
     const prev = tags;
     setTags((ts) => ts.map((t) => (t.id === id ? { ...t, ...updates } : t)));
     try {
@@ -421,7 +423,7 @@ export default function Home() {
       )}
       {viewMode === "tags" && (
         <TagsSidebar
-          tags={tags} dbTagTypes={dbTagTypes} selectedId={selectedId}
+          tags={tags} dbTagTypes={dbTagTypes} dbTagStatuses={dbTagStatuses} selectedId={selectedId}
           placingId={placingId} isOpen={sidebarOpen} isAuthenticated={isAuthenticated}
           showPois={showPoisInTagView}
           onToggle={() => setSidebarOpen(!sidebarOpen)} onSelectTag={selectTag}
@@ -474,7 +476,7 @@ export default function Home() {
       )}
       {selectedTagItem && (
         <DetailPanel
-          point={null} tag={selectedTagItem} dbStatuses={[]} dbTagTypes={dbTagTypes}
+          point={null} tag={selectedTagItem} dbStatuses={[]} dbTagTypes={dbTagTypes} dbTagStatuses={dbTagStatuses}
           allPoints={points}
           onClose={() => selectTag(null)}
           onStartPlace={isAuthenticated ? handleStartPlaceTag : undefined}

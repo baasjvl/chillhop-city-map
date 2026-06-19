@@ -12,10 +12,11 @@ interface DetailPanelProps {
   dbStatuses: string[];
   dbTypes?: string[];
   dbTagTypes?: string[];
+  dbTagStatuses?: string[];
   onClose: () => void;
   onStartPlace?: (id: string) => void;
   onUpdateStatus?: (id: string, status: string) => void;
-  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; name?: string; businessIds?: string[] }) => void;
+  onUpdateTag?: (id: string, updates: { done?: boolean; tagType?: string; status?: string; name?: string; businessIds?: string[] }) => void;
   onDeleteTag?: (id: string) => void;
   allPoints?: NotablePoint[];
   onSelectPoi?: (id: string) => void;
@@ -30,6 +31,7 @@ export default function DetailPanel({
   dbStatuses,
   dbTypes = [],
   dbTagTypes = [],
+  dbTagStatuses = [],
   onClose,
   onStartPlace,
   onUpdateStatus,
@@ -45,6 +47,7 @@ export default function DetailPanel({
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showTagTypeMenu, setShowTagTypeMenu] = useState(false);
+  const [showTagStatusMenu, setShowTagStatusMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [editingField, setEditingField] = useState<"defaultResponse" | null>(null);
@@ -59,6 +62,7 @@ export default function DetailPanel({
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const tagTypeMenuRef = useRef<HTMLDivElement>(null);
+  const tagStatusMenuRef = useRef<HTMLDivElement>(null);
   const businessMenuRef = useRef<HTMLDivElement>(null);
 
   const item = point || tag || character;
@@ -67,19 +71,20 @@ export default function DetailPanel({
 
   // Close menus on click outside
   useEffect(() => {
-    if (!showStatusMenu && !showTypeMenu && !showTagTypeMenu && !showBusinessMenu) return;
+    if (!showStatusMenu && !showTypeMenu && !showTagTypeMenu && !showTagStatusMenu && !showBusinessMenu) return;
     const handleClick = (e: MouseEvent) => {
       if (showStatusMenu && statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) setShowStatusMenu(false);
       if (showTypeMenu && typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setShowTypeMenu(false);
       if (showTagTypeMenu && tagTypeMenuRef.current && !tagTypeMenuRef.current.contains(e.target as Node)) setShowTagTypeMenu(false);
+      if (showTagStatusMenu && tagStatusMenuRef.current && !tagStatusMenuRef.current.contains(e.target as Node)) setShowTagStatusMenu(false);
       if (showBusinessMenu && businessMenuRef.current && !businessMenuRef.current.contains(e.target as Node)) { setShowBusinessMenu(false); setBusinessSearch(""); }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [showStatusMenu, showTypeMenu, showTagTypeMenu, showBusinessMenu]);
+  }, [showStatusMenu, showTypeMenu, showTagTypeMenu, showTagStatusMenu, showBusinessMenu]);
 
-  // Load page content for POIs and characters
-  const contentId = point?.id || character?.id;
+  // Load page content for POIs, characters, and tasks (tags)
+  const contentId = point?.id || character?.id || tag?.id;
   useEffect(() => {
     if (!contentId) { setPageContent(null); setShowStatusMenu(false); setEditingField(null); setEditingContent(false); return; }
     setLoadingContent(true);
@@ -104,7 +109,7 @@ export default function DetailPanel({
 
   // Reset tag menus on tag change
   useEffect(() => {
-    if (!tag) { setShowTagTypeMenu(false); }
+    if (!tag) { setShowTagTypeMenu(false); setShowTagStatusMenu(false); }
   }, [tag?.id]);
 
   if (!item) return null;
@@ -283,6 +288,39 @@ export default function DetailPanel({
                 )}
               </div>
 
+              {/* Tag status selector */}
+              <div ref={tagStatusMenuRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => onUpdateTag && dbTagStatuses.length > 0 && setShowTagStatusMenu(!showTagStatusMenu)}
+                  style={{
+                    fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 500,
+                    background: `${getStatusColor(tag.status)}22`, color: getStatusColor(tag.status),
+                    border: "none", cursor: onUpdateTag && dbTagStatuses.length > 0 ? "pointer" : "default", fontFamily: "inherit",
+                  }}
+                >
+                  {tag.status || "No status"}
+                </button>
+                {showTagStatusMenu && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--panel)",
+                    border: "1px solid var(--panel-border)", borderRadius: 8, padding: 4, zIndex: 10,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)", minWidth: 160,
+                  }}>
+                    {dbTagStatuses.map((s) => (
+                      <button key={s} onClick={() => { onUpdateTag!(tag.id, { status: s }); setShowTagStatusMenu(false); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 10px",
+                          border: "none", background: s === tag.status ? "rgba(245,168,85,0.15)" : "transparent",
+                          color: "var(--text)", fontSize: 12, cursor: "pointer", borderRadius: 4, fontFamily: "inherit", textAlign: "left",
+                        }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: getStatusColor(s), flexShrink: 0 }} />
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Done toggle */}
               {onUpdateTag && (
                 <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6, color: "var(--text-muted)", cursor: "pointer" }}>
@@ -411,6 +449,12 @@ export default function DetailPanel({
                 )}
               </div>
             </div>
+
+            {/* Task description (Notion page content) */}
+            <div style={{ height: 1, background: "var(--panel-border)" }} />
+            {loadingContent && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading description...</div>}
+            {!loadingContent && pageContent && <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{pageContent}</div>}
+            {!loadingContent && pageContent === "" && <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No description on this task yet.</div>}
           </>
         )}
 
